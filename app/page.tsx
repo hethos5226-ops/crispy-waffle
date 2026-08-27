@@ -2,7 +2,16 @@ import { SearchForm } from "@/components/SearchForm";
 
 export default function Home() {
   return (
-    <main className="flex flex-1 flex-col items-center justify-center gap-8 px-6 py-24 text-center">
+    <main className="relative flex flex-1 flex-col items-center justify-center gap-8 overflow-hidden px-6 py-24 text-center">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[480px] opacity-60"
+        style={{
+          background:
+            "radial-gradient(600px circle at 50% 0%, color-mix(in srgb, var(--buy) 10%, transparent), transparent 70%)",
+        }}
+      />
+
       <div className="space-y-3">
         <p className="text-sm font-semibold uppercase tracking-widest text-muted">BuyWise</p>
         <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">
@@ -17,7 +26,7 @@ export default function Home() {
       <SearchForm />
 
       <p className="text-xs text-muted">
-        MVP covers TVs, headphones, phones, laptops and monitors.
+        MVP covers TVs, headphones, phones, laptops and monitors — using demo data for now.
       </p>
     </main>
   );

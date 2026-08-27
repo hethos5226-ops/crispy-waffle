@@ -14,6 +14,8 @@
   --wait-soft: #fef6e7;
   --dont: #dc2626;
   --dont-soft: #fdecec;
+
+  --card-shadow: 0 1px 2px rgba(16, 16, 20, 0.04), 0 16px 32px -18px rgba(16, 16, 20, 0.16);
 }
 
 @theme inline {
@@ -48,6 +50,8 @@
     --wait-soft: #2c2210;
     --dont: #f87171;
     --dont-soft: #2c1616;
+
+    --card-shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 16px 32px -16px rgba(0, 0, 0, 0.55);
   }
 }
 

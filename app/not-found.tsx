@@ -1,12 +1,10 @@
-import Link from "next/link";
+import { EmptyState } from "@/components/EmptyState";
 
 export default function NotFound() {
   return (
-    <main className="flex flex-1 flex-col items-center justify-center gap-4 px-6 py-24 text-center">
-      <p className="text-muted">That product isn&apos;t in the BuyWise MVP catalog.</p>
-      <Link href="/" className="text-sm font-semibold underline underline-offset-4">
-        Back to search
-      </Link>
-    </main>
+    <EmptyState
+      heading="Product not found"
+      message="That product isn't in the BuyWise MVP catalog yet. Try one of these instead:"
+    />
   );
 }

@@ -1,4 +1,5 @@
 import type { PriceAnalysis, PriceInfo } from "@/lib/types";
+import { TagIcon } from "@/components/icons";
 
 const STANDING_LABEL: Record<PriceAnalysis["standing"], string> = {
   cheap: "Cheap right now",
@@ -12,44 +13,43 @@ function formatPrice(value: number, currency: string) {
 
 export function PriceCard({ price, analysis }: { price: PriceInfo; analysis: PriceAnalysis }) {
   const pct = Math.round(Math.abs(analysis.percentBelowTypical));
+  const tone =
+    analysis.standing === "cheap" ? "buy" : analysis.standing === "expensive" ? "dont" : "wait";
 
   return (
-    <div className="rounded-2xl border border-border bg-surface p-5">
-      <div className="flex items-baseline justify-between gap-4">
+    <div
+      className="rounded-2xl border border-border bg-surface p-5 sm:p-6"
+      style={{ boxShadow: "var(--card-shadow)" }}
+    >
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="text-xs uppercase tracking-wide text-muted">Current price</p>
-          <p className="text-3xl font-bold">{formatPrice(price.current, price.currency)}</p>
+          <p className="text-xs font-medium uppercase tracking-wide text-muted">Current price</p>
+          <p className="mt-1 text-4xl font-extrabold tabular-nums tracking-tight">
+            {formatPrice(price.current, price.currency)}
+          </p>
         </div>
         <span
-          className="rounded-full px-3 py-1 text-xs font-semibold"
-          style={{
-            backgroundColor:
-              analysis.standing === "cheap"
-                ? "var(--buy-soft)"
-                : analysis.standing === "expensive"
-                  ? "var(--dont-soft)"
-                  : "var(--wait-soft)",
-            color:
-              analysis.standing === "cheap"
-                ? "var(--buy)"
-                : analysis.standing === "expensive"
-                  ? "var(--dont)"
-                  : "var(--wait)",
-          }}
+          className="mt-1 inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold"
+          style={{ backgroundColor: `var(--${tone}-soft)`, color: `var(--${tone})` }}
         >
+          <TagIcon className="h-3.5 w-3.5" />
           {STANDING_LABEL[analysis.standing]}
         </span>
       </div>
-      <p className="mt-2 text-sm text-muted">
-        Typical price: {formatPrice(price.typical, price.currency)}
+
+      <div className="mt-4 flex items-center gap-2 border-t border-border pt-4 text-sm text-muted">
+        <span>
+          Typical price: <span className="font-medium text-foreground">{formatPrice(price.typical, price.currency)}</span>
+        </span>
         {analysis.standing !== "normal" && (
           <>
-            {" · "}
-            {analysis.percentBelowTypical > 0 ? "" : "+"}
-            {analysis.percentBelowTypical > 0 ? `${pct}% below typical` : `${pct}% above typical`}
+            <span className="text-border">·</span>
+            <span className="font-medium" style={{ color: `var(--${tone})` }}>
+              {analysis.percentBelowTypical > 0 ? `${pct}% below typical` : `${pct}% above typical`}
+            </span>
           </>
         )}
-      </p>
+      </div>
     </div>
   );
 }

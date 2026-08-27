@@ -7,12 +7,14 @@ export function VerdictBadge({ verdict, size = "lg" }: { verdict: Verdict; size?
 
   return (
     <span
-      className={`inline-flex items-center gap-2 rounded-full font-semibold tracking-wide ${
-        isLarge ? "px-5 py-2 text-lg" : "px-3 py-1 text-xs"
+      className={`inline-flex items-center gap-2 rounded-full font-bold tracking-wide ${
+        isLarge ? "px-4 py-1.5 text-base sm:text-lg" : "px-3 py-1 text-[11px]"
       }`}
       style={{ backgroundColor: meta.soft, color: meta.color }}
     >
-      <span aria-hidden>{meta.emoji}</span>
+      <span aria-hidden className={isLarge ? "text-xl" : "text-xs"}>
+        {meta.emoji}
+      </span>
       {meta.label}
     </span>
   );

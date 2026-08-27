@@ -26,10 +26,18 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-background text-foreground">
-        <header className="border-b border-border px-6 py-4">
-          <Link href="/" className="text-sm font-bold tracking-tight">
-            BuyWise
-          </Link>
+        <header className="sticky top-0 z-10 border-b border-border bg-background/80 backdrop-blur-md">
+          <div className="mx-auto flex max-w-3xl items-center justify-between px-6 py-4">
+            <Link href="/" className="flex items-center gap-2">
+              <span className="flex h-6 w-6 items-center justify-center rounded-md bg-foreground text-[13px] font-bold text-background">
+                B
+              </span>
+              <span className="text-[15px] font-bold tracking-tight">BuyWise</span>
+            </Link>
+            <span className="rounded-full border border-border px-2.5 py-1 text-[11px] font-medium tracking-wide text-muted">
+              Demo data
+            </span>
+          </div>
         </header>
         {children}
       </body>

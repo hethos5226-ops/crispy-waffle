@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { Product, Verdict } from "@/lib/types";
 import { ProductGlyph } from "@/components/ProductGlyph";
 import { VerdictBadge } from "@/components/VerdictBadge";
+import { ArrowRightIcon } from "@/components/icons";
 
 export function AlternativeCard({
   product,
@@ -15,9 +16,10 @@ export function AlternativeCard({
   return (
     <Link
       href={`/product/${product.id}`}
-      className="flex items-center gap-4 rounded-2xl border border-border bg-surface p-4 transition-colors hover:bg-surface-muted"
+      className="group flex items-center gap-4 rounded-2xl border border-border bg-surface p-4 transition-all hover:-translate-y-0.5 hover:border-foreground/15"
+      style={{ boxShadow: "var(--card-shadow)" }}
     >
-      <ProductGlyph category={product.category} className="h-14 w-14" />
+      <ProductGlyph category={product.category} className="h-14 w-14 shrink-0" />
       <div className="min-w-0 flex-1">
         <p className="truncate font-semibold">{product.name}</p>
         <p className="text-sm text-muted">
@@ -25,6 +27,7 @@ export function AlternativeCard({
         </p>
       </div>
       <VerdictBadge verdict={verdict} size="sm" />
+      <ArrowRightIcon className="h-4 w-4 shrink-0 text-muted transition-transform group-hover:translate-x-0.5" />
     </Link>
   );
 }

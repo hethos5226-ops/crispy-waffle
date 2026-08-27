@@ -5,28 +5,43 @@ import { VerdictBadge } from "@/components/VerdictBadge";
 import { PriceCard } from "@/components/PriceCard";
 import { ReviewLists } from "@/components/ReviewLists";
 import { AlternativeCard } from "@/components/AlternativeCard";
+import { VERDICT_META } from "@/lib/verdict";
 
 export function ResultView({ analysis }: { analysis: ProductAnalysis }) {
   const { product, score, verdict, price, reasoning, alternative } = analysis;
+  const meta = VERDICT_META[verdict];
 
   return (
-    <div className="mx-auto w-full max-w-2xl space-y-6 pb-16">
-      <div className="rounded-3xl border border-border bg-surface p-6 sm:p-8">
-        <div className="flex flex-col items-center gap-6 text-center sm:flex-row sm:text-left">
-          <ProductGlyph category={product.category} className="h-28 w-28 sm:h-32 sm:w-32" />
+    <div className="mx-auto w-full max-w-2xl space-y-5 pb-16">
+      {/* Identity */}
+      <div className="flex items-center gap-4">
+        <ProductGlyph category={product.category} className="h-16 w-16 shrink-0 sm:h-20 sm:w-20" />
+        <div className="min-w-0">
+          <p className="text-sm font-medium text-muted">{product.brand}</p>
+          <h1 className="text-xl font-bold leading-tight sm:text-2xl">{product.name}</h1>
+        </div>
+      </div>
+
+      {/* Hero verdict — the answer, immediately */}
+      <div
+        className="overflow-hidden rounded-3xl border border-border"
+        style={{ boxShadow: "var(--card-shadow)" }}
+      >
+        <div className="flex flex-col items-center gap-5 p-6 text-center sm:flex-row sm:items-center sm:gap-6 sm:p-8 sm:text-left" style={{ backgroundColor: meta.soft }}>
+          <ScoreDial score={score} verdict={verdict} />
           <div className="flex-1">
-            <p className="text-sm text-muted">{product.brand}</p>
-            <h1 className="text-2xl font-bold leading-tight sm:text-3xl">{product.name}</h1>
-            <div className="mt-3 flex justify-center sm:justify-start">
+            <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: meta.color }}>
+              BuyWise Score
+            </p>
+            <div className="mt-1.5 flex justify-center sm:justify-start">
               <VerdictBadge verdict={verdict} />
             </div>
           </div>
-          <ScoreDial score={score} verdict={verdict} />
         </div>
 
-        <p className="mt-6 border-t border-border pt-6 text-base leading-relaxed text-foreground">
-          {reasoning}
-        </p>
+        <div className="bg-surface p-6 sm:p-8">
+          <p className="text-base leading-relaxed text-foreground">{reasoning}</p>
+        </div>
       </div>
 
       <PriceCard price={product.price} analysis={price} />
@@ -46,7 +61,7 @@ export function ResultView({ analysis }: { analysis: ProductAnalysis }) {
         </div>
       )}
 
-      <p className="text-center text-xs text-muted">
+      <p className="pt-2 text-center text-xs text-muted">
         Demo data — BuyWise is showing illustrative pricing and review estimates, not live figures.
       </p>
     </div>
