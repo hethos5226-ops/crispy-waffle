@@ -31,7 +31,7 @@ export default async function ResultPage({
   }
 
   return (
-    <main className="flex-1 px-6 py-12">
+    <main className="px-6 py-8">
       <ResultView analysis={analysis} />
     </main>
   );

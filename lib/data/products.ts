@@ -3,11 +3,16 @@ import type { Product } from "@/lib/types";
 /**
  * MOCK CATALOG — DEMO DATA ONLY.
  *
- * These prices, ratings and review summaries are illustrative placeholders,
- * not live data pulled from any retailer or review site. This file is the
- * one place that stands in for a real product/pricing/review API. Swap it
- * for a real `ProductProvider` implementation (see lib/data/provider.ts)
- * without touching any UI code.
+ * These prices, ratings, review summaries, warranty terms and release dates
+ * are illustrative placeholders, not live data pulled from any retailer,
+ * review site or manufacturer spec sheet. This file is the one place that
+ * stands in for a real product/pricing/review API. Swap it for a real
+ * `ProductProvider` implementation (see lib/data/provider.ts) without
+ * touching any UI code.
+ *
+ * `warranty` and `release` are `null` on a couple of entries on purpose —
+ * they demonstrate the scoring engine's "don't fabricate, mark unavailable
+ * and redistribute weight" behavior (see lib/scoring.ts).
  */
 export const PRODUCTS: Product[] = [
   {
@@ -31,6 +36,9 @@ export const PRODUCTS: Product[] = [
     },
     alternativeId: "tcl-c6k",
     aliases: ["50p7", "hisense p7", "hisense 50 p7"],
+    warranty: { months: 12, type: "manufacturer", limitations: "Panel defects covered only in the first 90 days in some regions" },
+    release: { year: 2023, month: 1 },
+    newerModelAvailable: true,
   },
   {
     id: "tcl-c6k",
@@ -49,6 +57,9 @@ export const PRODUCTS: Product[] = [
     },
     alternativeId: "hisense-50p7",
     aliases: ["c6k", "tcl c6k", "tcl 55 c6k"],
+    warranty: { months: 24, type: "manufacturer", limitations: null },
+    release: { year: 2024, month: 6 },
+    newerModelAvailable: false,
   },
   {
     id: "samsung-qn90d",
@@ -67,6 +78,9 @@ export const PRODUCTS: Product[] = [
     },
     alternativeId: "tcl-c6k",
     aliases: ["qn90d", "samsung neo qled"],
+    warranty: { months: 12, type: "manufacturer", limitations: null },
+    release: { year: 2024, month: 2 },
+    newerModelAvailable: true,
   },
   {
     id: "sony-wh1000xm5",
@@ -88,6 +102,9 @@ export const PRODUCTS: Product[] = [
     },
     alternativeId: "bose-qc-ultra",
     aliases: ["wh-1000xm5", "xm5", "sony 1000xm5"],
+    warranty: { months: 12, type: "manufacturer", limitations: null },
+    release: { year: 2022, month: 5 },
+    newerModelAvailable: true,
   },
   {
     id: "bose-qc-ultra",
@@ -102,6 +119,9 @@ export const PRODUCTS: Product[] = [
     },
     alternativeId: "sony-wh1000xm5",
     aliases: ["qc ultra", "quietcomfort ultra"],
+    warranty: { months: 12, type: "manufacturer", limitations: null },
+    release: { year: 2023, month: 9 },
+    newerModelAvailable: false,
   },
   {
     id: "iphone-15",
@@ -116,6 +136,9 @@ export const PRODUCTS: Product[] = [
     },
     alternativeId: "samsung-s24",
     aliases: ["iphone15", "apple iphone 15"],
+    warranty: { months: 12, type: "manufacturer", limitations: "Extendable via AppleCare+" },
+    release: { year: 2023, month: 9 },
+    newerModelAvailable: true,
   },
   {
     id: "samsung-s24",
@@ -130,6 +153,9 @@ export const PRODUCTS: Product[] = [
     },
     alternativeId: "iphone-15",
     aliases: ["galaxy s24", "s24"],
+    warranty: { months: 12, type: "manufacturer", limitations: null },
+    release: { year: 2024, month: 1 },
+    newerModelAvailable: true,
   },
   {
     id: "macbook-air-m2",
@@ -144,6 +170,9 @@ export const PRODUCTS: Product[] = [
     },
     alternativeId: "dell-xps-13",
     aliases: ["macbook air m2", "m2 air"],
+    warranty: { months: 12, type: "manufacturer", limitations: "Extendable via AppleCare+" },
+    release: { year: 2022, month: 7 },
+    newerModelAvailable: true,
   },
   {
     id: "dell-xps-13",
@@ -158,6 +187,9 @@ export const PRODUCTS: Product[] = [
     },
     alternativeId: "macbook-air-m2",
     aliases: ["xps13", "xps 13"],
+    warranty: null,
+    release: { year: 2023, month: 3 },
+    newerModelAvailable: false,
   },
   {
     id: "lg-27gp850",
@@ -176,6 +208,9 @@ export const PRODUCTS: Product[] = [
     },
     alternativeId: "dell-u2723qe",
     aliases: ["27gp850", "lg ultragear 27"],
+    warranty: { months: 36, type: "manufacturer", limitations: null },
+    release: { year: 2022, month: 1 },
+    newerModelAvailable: false,
   },
   {
     id: "dell-u2723qe",
@@ -194,5 +229,14 @@ export const PRODUCTS: Product[] = [
     },
     alternativeId: "lg-27gp850",
     aliases: ["u2723qe", "dell ultrasharp 27"],
+    warranty: { months: 36, type: "manufacturer", limitations: "Premium Panel Exchange for bright sub-pixels" },
+    release: null,
+    newerModelAvailable: false,
   },
 ];
+
+/** Synchronous lookup for the scoring engine, which needs to stay synchronous. */
+export function getById(id: string): Product | null {
+  return PRODUCTS.find((p) => p.id === id) ?? null;
+}
+

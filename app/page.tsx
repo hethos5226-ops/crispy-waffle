@@ -1,33 +1,17 @@
-import { SearchForm } from "@/components/SearchForm";
+import { analyzeCatalog } from "@/lib/catalog";
+import { RecsBrowser } from "@/components/RecsBrowser";
+import { FavoritesList } from "@/components/FavoritesList";
 
-export default function Home() {
+export default function RecsPage() {
+  const entries = analyzeCatalog();
+
   return (
-    <main className="relative flex flex-1 flex-col items-center justify-center gap-8 overflow-hidden px-6 py-24 text-center">
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[480px] opacity-60"
-        style={{
-          background:
-            "radial-gradient(600px circle at 50% 0%, color-mix(in srgb, var(--buy) 10%, transparent), transparent 70%)",
-        }}
-      />
+    <main className="mx-auto max-w-2xl px-5 pb-8 pt-5">
+      <h1 className="text-[26px] font-extrabold tracking-tight">Recs</h1>
+      <p className="mb-4 mt-1 text-sm text-muted">Search, browse by category, and keep track of what you like.</p>
 
-      <div className="space-y-3">
-        <p className="text-sm font-semibold uppercase tracking-widest text-muted">BuyWise</p>
-        <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">
-          Should you buy it?
-        </h1>
-        <p className="mx-auto max-w-md text-base text-muted sm:text-lg">
-          Paste a product link or search a product. Get one clear answer —
-          instead of hours of comparing prices, reviews and forums yourself.
-        </p>
-      </div>
-
-      <SearchForm />
-
-      <p className="text-xs text-muted">
-        MVP covers TVs, headphones, phones, laptops and monitors — using demo data for now.
-      </p>
+      <RecsBrowser entries={entries} />
+      <FavoritesList entries={entries} />
     </main>
   );
 }

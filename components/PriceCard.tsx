@@ -1,5 +1,7 @@
-import type { PriceAnalysis, PriceInfo } from "@/lib/types";
+import type { PriceAnalysis, Product } from "@/lib/types";
 import { TagIcon } from "@/components/icons";
+import { PriceHistoryChart } from "@/components/PriceHistoryChart";
+import { buildPriceHistory } from "@/lib/priceHistory";
 
 const STANDING_LABEL: Record<PriceAnalysis["standing"], string> = {
   cheap: "Cheap right now",
@@ -11,10 +13,11 @@ function formatPrice(value: number, currency: string) {
   return new Intl.NumberFormat("en-US", { style: "currency", currency, maximumFractionDigits: 0 }).format(value);
 }
 
-export function PriceCard({ price, analysis }: { price: PriceInfo; analysis: PriceAnalysis }) {
+export function PriceCard({ product, analysis }: { product: Product; analysis: PriceAnalysis }) {
+  const { price } = product;
   const pct = Math.round(Math.abs(analysis.percentBelowTypical));
-  const tone =
-    analysis.standing === "cheap" ? "buy" : analysis.standing === "expensive" ? "dont" : "wait";
+  const tone = analysis.standing === "cheap" ? "buy" : analysis.standing === "expensive" ? "dont" : "wait";
+  const history = buildPriceHistory(product);
 
   return (
     <div
@@ -36,6 +39,8 @@ export function PriceCard({ price, analysis }: { price: PriceInfo; analysis: Pri
           {STANDING_LABEL[analysis.standing]}
         </span>
       </div>
+
+      <PriceHistoryChart history={history} typical={price.typical} currency={price.currency} tone={tone} />
 
       <div className="mt-4 flex items-center gap-2 border-t border-border pt-4 text-sm text-muted">
         <span>

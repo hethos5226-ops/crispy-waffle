@@ -3,16 +3,22 @@ import { ProductGlyph } from "@/components/ProductGlyph";
 import { ScoreDial } from "@/components/ScoreDial";
 import { VerdictBadge } from "@/components/VerdictBadge";
 import { PriceCard } from "@/components/PriceCard";
-import { ReviewLists } from "@/components/ReviewLists";
+import { ReviewsSection } from "@/components/ReviewsSection";
+import { RetailersSection } from "@/components/RetailersSection";
+import { ScoreBreakdown } from "@/components/ScoreBreakdown";
+import { AiSummaryCard } from "@/components/AiSummaryCard";
 import { AlternativeCard } from "@/components/AlternativeCard";
+import { DetailSubBar } from "@/components/DetailSubBar";
 import { VERDICT_META } from "@/lib/verdict";
 
 export function ResultView({ analysis }: { analysis: ProductAnalysis }) {
-  const { product, score, verdict, price, reasoning, alternative } = analysis;
+  const { product, score, verdict, price, alternative, factors, weightRedistributed } = analysis;
   const meta = VERDICT_META[verdict];
 
   return (
     <div className="mx-auto w-full max-w-2xl space-y-5 pb-16">
+      <DetailSubBar productId={product.id} />
+
       {/* Identity */}
       <div className="flex items-center gap-4">
         <ProductGlyph category={product.category} className="h-16 w-16 shrink-0 sm:h-20 sm:w-20" />
@@ -27,7 +33,10 @@ export function ResultView({ analysis }: { analysis: ProductAnalysis }) {
         className="overflow-hidden rounded-3xl border border-border"
         style={{ boxShadow: "var(--card-shadow)" }}
       >
-        <div className="flex flex-col items-center gap-5 p-6 text-center sm:flex-row sm:items-center sm:gap-6 sm:p-8 sm:text-left" style={{ backgroundColor: meta.soft }}>
+        <div
+          className="flex flex-col items-center gap-5 p-6 text-center sm:flex-row sm:items-center sm:gap-6 sm:p-8 sm:text-left"
+          style={{ backgroundColor: meta.soft }}
+        >
           <ScoreDial score={score} verdict={verdict} />
           <div className="flex-1">
             <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: meta.color }}>
@@ -38,15 +47,17 @@ export function ResultView({ analysis }: { analysis: ProductAnalysis }) {
             </div>
           </div>
         </div>
-
-        <div className="bg-surface p-6 sm:p-8">
-          <p className="text-base leading-relaxed text-foreground">{reasoning}</p>
-        </div>
       </div>
 
-      <PriceCard price={product.price} analysis={price} />
+      <ScoreBreakdown factors={factors} weightRedistributed={weightRedistributed} />
 
-      <ReviewLists reviews={product.reviews} />
+      <AiSummaryCard reasoning={analysis.reasoning} />
+
+      <PriceCard product={product} analysis={price} />
+
+      <ReviewsSection product={product} />
+
+      <RetailersSection product={product} />
 
       {alternative && (
         <div>

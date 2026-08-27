@@ -1,5 +1,5 @@
 import type { Product } from "@/lib/types";
-import { PRODUCTS } from "@/lib/data/products";
+import { PRODUCTS, getById } from "@/lib/data/products";
 
 /**
  * Boundary between "where product/price/review data comes from" and the
@@ -54,7 +54,7 @@ export class MockProductProvider implements ProductProvider {
   }
 
   async getById(id: string): Promise<Product | null> {
-    return PRODUCTS.find((p) => p.id === id) ?? null;
+    return getById(id);
   }
 
   async search(query: string): Promise<Product | null> {

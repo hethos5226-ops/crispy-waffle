@@ -28,13 +28,11 @@ export function ResultSkeleton() {
         </div>
       </div>
 
-      <Block className="h-24 w-full rounded-2xl" />
-
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Block className="h-40 w-full rounded-2xl" />
-        <Block className="h-40 w-full rounded-2xl" />
-      </div>
-
+      <Block className="h-40 w-full rounded-2xl" />
+      <Block className="h-32 w-full rounded-2xl" />
+      <Block className="h-56 w-full rounded-2xl" />
+      <Block className="h-64 w-full rounded-2xl" />
+      <Block className="h-40 w-full rounded-2xl" />
       <Block className="h-20 w-full rounded-2xl" />
     </div>
   );
