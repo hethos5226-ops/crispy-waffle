@@ -31,7 +31,7 @@ export function HistoryList({ entries }: { entries: CatalogEntry[] }) {
   if (rows.length === 0) {
     return (
       <div className="flex flex-col items-center gap-4 px-6 py-16 text-center">
-        <Wiz expression="thinking" size={56} />
+        <Wiz pose="tablet" size={104} />
         <div>
           <p className="text-[17px] font-bold">No products analyzed yet</p>
           <p className="mt-1.5 max-w-xs text-[13.5px] text-muted">Everything you look up will show up here so you can find it again.</p>

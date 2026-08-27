@@ -12,30 +12,47 @@ const TABS = [
   { href: "/settings", label: "Settings", icon: SettingsIcon, match: (p: string) => p.startsWith("/settings") },
 ];
 
+/**
+ * Floating, fully-rounded bar rather than a full-width square one — the
+ * translucent blur reads as a layer above the content instead of a border.
+ */
 export function TabBar() {
   const pathname = usePathname();
 
   return (
-    <nav
-      className="fixed inset-x-0 bottom-0 z-20 flex justify-around border-t border-border px-1 pb-[calc(8px+env(safe-area-inset-bottom))] pt-2"
-      style={{ backgroundColor: "color-mix(in srgb, var(--surface) 90%, transparent)", backdropFilter: "blur(16px)" }}
-    >
-      {TABS.map((tab) => {
-        const active = tab.match(pathname);
-        const Icon = tab.icon;
-        return (
-          <Link
-            key={tab.href}
-            href={tab.href}
-            className={`flex max-w-[84px] flex-1 flex-col items-center gap-[3px] rounded-xl px-2.5 py-1.5 text-[10.5px] font-semibold transition-colors active:scale-95 ${
-              active ? "text-accent" : "text-muted"
-            }`}
-          >
-            <Icon className={`h-5 w-5 transition-transform ${active ? "-translate-y-px" : ""}`} />
-            <span>{tab.label}</span>
-          </Link>
-        );
-      })}
+    <nav className="pointer-events-none fixed inset-x-0 bottom-0 z-20 flex justify-center px-3 pb-[calc(10px+env(safe-area-inset-bottom))]">
+      <div
+        className="pointer-events-auto flex w-full max-w-md items-stretch justify-around gap-1 rounded-[26px] border border-border/70 p-1.5"
+        style={{
+          backgroundColor: "color-mix(in srgb, var(--surface) 78%, transparent)",
+          backdropFilter: "blur(24px) saturate(180%)",
+          WebkitBackdropFilter: "blur(24px) saturate(180%)",
+          boxShadow: "0 8px 32px -8px rgba(0,0,0,0.22), 0 1px 2px rgba(0,0,0,0.06)",
+        }}
+      >
+        {TABS.map((tab) => {
+          const active = tab.match(pathname);
+          const Icon = tab.icon;
+          return (
+            <Link
+              key={tab.href}
+              href={tab.href}
+              aria-current={active ? "page" : undefined}
+              className={`pressable relative flex flex-1 flex-col items-center gap-[3px] rounded-[20px] px-1 py-2 text-[10px] font-semibold ${
+                active ? "text-accent" : "text-muted"
+              }`}
+              style={
+                active
+                  ? { backgroundColor: "color-mix(in srgb, var(--accent) 12%, transparent)" }
+                  : undefined
+              }
+            >
+              <Icon className={`h-[22px] w-[22px] transition-transform duration-300 ${active ? "-translate-y-px scale-105" : ""}`} />
+              <span>{tab.label}</span>
+            </Link>
+          );
+        })}
+      </div>
     </nav>
   );
 }

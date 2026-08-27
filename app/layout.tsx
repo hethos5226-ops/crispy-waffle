@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import Link from "next/link";
 import { TabBar } from "@/components/TabBar";
+import { Wiz } from "@/components/Wiz";
 import { ToastProvider } from "@/components/ToastProvider";
 import { Onboarding } from "@/components/Onboarding";
 import "./globals.css";
@@ -41,10 +42,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <ToastProvider>
           <header className="sticky top-0 z-10 border-b border-border bg-background/80 backdrop-blur-md">
             <div className="mx-auto flex max-w-3xl items-center justify-between px-6 py-4">
-              <Link href="/" className="flex items-center gap-2">
-                <span className="flex h-6 w-6 items-center justify-center rounded-md bg-foreground text-[13px] font-bold text-background">
-                  B
-                </span>
+              <Link href="/" className="flex items-center gap-2 pressable">
+                <Wiz pose="head" size={30} priority />
                 <span className="text-[15px] font-bold tracking-tight">BuyWise</span>
               </Link>
               <span className="rounded-full border border-border px-2.5 py-1 text-[11px] font-medium tracking-wide text-muted">

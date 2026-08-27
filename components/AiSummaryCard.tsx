@@ -3,7 +3,7 @@ import { Disclosure } from "@/components/Disclosure";
 
 export function AiSummaryCard({ reasoning }: { reasoning: string }) {
   return (
-    <div className="rounded-2xl border border-border bg-surface p-5 sm:p-6" style={{ boxShadow: "var(--card-shadow)" }}>
+    <div className="rounded-[22px] border border-border bg-surface p-5 sm:p-6" style={{ boxShadow: "var(--card-shadow)" }}>
       <h2 className="flex items-center gap-1.5 text-[14.5px] font-bold">
         <SparkleIcon className="h-[15px] w-[15px] text-muted" />
         AI Summary

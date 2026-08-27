@@ -5,7 +5,7 @@ import { EXAMPLE_QUERIES } from "@/lib/examples";
 export function EmptyState({ heading, message }: { heading: string; message: string }) {
   return (
     <main className="flex flex-1 flex-col items-center justify-center gap-5 px-6 py-24 text-center">
-      <Wiz expression="thinking" size={56} />
+      <Wiz pose="magnify" size={96} />
       <div className="space-y-1.5">
         <h1 className="text-lg font-semibold">{heading}</h1>
         <p className="max-w-sm text-sm text-muted">{message}</p>

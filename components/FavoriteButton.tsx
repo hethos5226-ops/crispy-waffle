@@ -17,7 +17,7 @@ export function FavoriteButton({ productId }: { productId: string }) {
         const nowFav = toggleFavorite(productId);
         showToast(nowFav ? "Added to favorites" : "Removed from favorites");
       }}
-      className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-border bg-surface transition-transform active:scale-90 ${
+      className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-border bg-surface pressable pressable-tight ${
         fav ? "text-wait" : "text-foreground"
       }`}
       style={{ boxShadow: "var(--card-shadow)" }}

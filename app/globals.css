@@ -89,6 +89,81 @@ body {
   font-family: var(--font-sans), Arial, Helvetica, sans-serif;
 }
 
+/* ---------------------------------------------------------------
+   Touch feel. iOS-style: a quick, springy scale-down on press that
+   settles gently on release, rather than a linear fade.
+   --------------------------------------------------------------- */
+.pressable {
+  transition:
+    transform 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    opacity 0.2s ease;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+.pressable:active {
+  transform: scale(0.965);
+  transition-duration: 0.09s;
+}
+/* Small circular controls need a shallower squash or they look like they collapse. */
+.pressable-tight:active {
+  transform: scale(0.9);
+}
+@media (prefers-reduced-motion: reduce) {
+  .pressable,
+  .pressable:active,
+  .pressable-tight:active {
+    transition: none;
+    transform: none;
+  }
+}
+
+/* Momentary highlight after "See why" scrolls you to a card. */
+@keyframes flash-focus {
+  0%,
+  100% {
+    box-shadow: var(--card-shadow);
+  }
+  25%,
+  70% {
+    box-shadow:
+      var(--card-shadow),
+      0 0 0 3px color-mix(in srgb, var(--accent) 45%, transparent);
+  }
+}
+.flash-focus {
+  animation: flash-focus 1.4s ease;
+}
+@media (prefers-reduced-motion: reduce) {
+  .flash-focus {
+    animation: none;
+  }
+}
+
+/* Wiz entrance when the onboarding pose changes. */
+@keyframes wiz-pop {
+  0% {
+    opacity: 0;
+    transform: translateY(10px) scale(0.9);
+  }
+  60% {
+    transform: translateY(0) scale(1.03);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+.wiz-pop {
+  animation: wiz-pop 0.42s cubic-bezier(0.22, 1, 0.36, 1);
+}
+@media (prefers-reduced-motion: reduce) {
+  .wiz-pop {
+    animation: none;
+  }
+}
+
 /* Smooth expand/collapse for factor rows, "see all reviews", grade groups, etc. */
 .dcontent {
   display: grid;

@@ -7,6 +7,7 @@ import type { CatalogEntry } from "@/lib/catalog";
 import { ProductRow } from "@/components/ProductRow";
 import { SearchIcon } from "@/components/icons";
 import { VERDICT_META } from "@/lib/verdict";
+import { useTodayLabel } from "@/lib/useToday";
 
 const CATEGORIES: { id: Category | "all"; label: string }[] = [
   { id: "all", label: "All" },
@@ -25,6 +26,7 @@ export function RecsBrowser({ entries }: { entries: CatalogEntry[] }) {
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<Category | "all">("all");
+  const updatedLabel = useTodayLabel();
 
   const filtered = useMemo(() => {
     let list = entries;
@@ -69,7 +71,7 @@ export function RecsBrowser({ entries }: { entries: CatalogEntry[] }) {
             key={c.id}
             type="button"
             onClick={() => setCategory(c.id)}
-            className={`rounded-full border px-3.5 py-1.5 text-[12.5px] font-semibold transition-colors active:scale-95 ${
+            className={`rounded-full border px-3.5 py-1.5 text-[12.5px] font-semibold pressable ${
               category === c.id
                 ? "border-foreground bg-foreground text-background"
                 : "border-border bg-surface text-muted hover:text-foreground"
@@ -82,7 +84,7 @@ export function RecsBrowser({ entries }: { entries: CatalogEntry[] }) {
 
       <div className="mb-3 mt-7 flex items-baseline justify-between gap-2">
         <span className="text-[13px] font-bold uppercase tracking-wide text-muted">Top picks right now</span>
-        <span className="text-[12.5px] font-semibold text-muted">Updated daily</span>
+        <span className="text-[12.5px] font-semibold text-muted">Updated {updatedLabel}</span>
       </div>
       <div className="flex flex-col gap-2.5">
         {filtered.length > 0 ? (

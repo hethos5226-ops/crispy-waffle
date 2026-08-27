@@ -174,6 +174,14 @@ export function TrashIcon({ className = "h-4 w-4" }: IconProps) {
   );
 }
 
+export function ShieldIcon({ className = "h-4 w-4" }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={className}>
+      <path d="M12 3l7 3v6c0 4.5-3 7.7-7 9-4-1.3-7-4.5-7-9V6z" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 export function ExternalLinkIcon({ className = "h-3 w-3" }: IconProps) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" className={className}>

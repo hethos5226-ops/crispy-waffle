@@ -15,7 +15,7 @@ export function DetailSubBar({ productId }: { productId: string }) {
         type="button"
         aria-label="Back"
         onClick={() => router.back()}
-        className="flex h-9 w-9 items-center justify-center rounded-full border border-border bg-surface text-foreground transition-transform active:scale-90"
+        className="flex h-9 w-9 items-center justify-center rounded-full border border-border bg-surface text-foreground pressable pressable-tight"
         style={{ boxShadow: "var(--card-shadow)" }}
       >
         <ChevronLeftIcon className="h-[18px] w-[18px]" />
@@ -26,7 +26,7 @@ export function DetailSubBar({ productId }: { productId: string }) {
           type="button"
           aria-label="Share"
           onClick={() => showToast("Sharing isn't available yet")}
-          className="flex h-9 w-9 items-center justify-center rounded-full border border-border bg-surface text-foreground transition-transform active:scale-90"
+          className="flex h-9 w-9 items-center justify-center rounded-full border border-border bg-surface text-foreground pressable pressable-tight"
           style={{ boxShadow: "var(--card-shadow)" }}
         >
           <ShareIcon className="h-4 w-4" />

@@ -20,7 +20,7 @@ export function Disclosure({
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
-        className="mt-3.5 flex w-full items-center justify-between gap-2.5 border-t border-border pt-3.5 text-left text-[13px] font-semibold text-muted transition-colors hover:text-foreground active:scale-[0.98]"
+        className="mt-3.5 flex w-full items-center justify-between gap-2.5 border-t border-border pt-3.5 text-left text-[13px] font-semibold text-muted pressable hover:text-foreground"
       >
         {trigger}
         <ChevronDownIcon className={`h-[15px] w-[15px] shrink-0 transition-transform duration-200 ${open ? "rotate-180" : ""}`} />

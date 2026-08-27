@@ -21,7 +21,7 @@ export function FavoritesList({ entries }: { entries: CatalogEntry[] }) {
         </div>
       ) : (
         <div className="flex flex-col items-center gap-2.5 rounded-2xl border border-dashed border-border px-4 py-6 text-center">
-          <Wiz expression="thinking" size={44} />
+          <Wiz pose="shoppingBag" size={84} />
           <p className="text-[13.5px] text-muted">Star a product from its page to keep track of it here.</p>
         </div>
       )}

@@ -1,32 +1,37 @@
 import type { Verdict } from "@/lib/types";
 import { VERDICT_META } from "@/lib/verdict";
 
-export function ScoreDial({ score, verdict }: { score: number; verdict: Verdict }) {
+export function ScoreDial({ score, verdict, size = 150 }: { score: number; verdict: Verdict; size?: number }) {
   const color = VERDICT_META[verdict].color;
-  const radius = 52;
+  const stroke = Math.round(size * 0.075);
+  const radius = 50 - stroke / 2;
   const circumference = 2 * Math.PI * radius;
   const offset = circumference * (1 - score / 100);
 
   return (
-    <div className="relative h-28 w-28 shrink-0 sm:h-32 sm:w-32">
-      <svg viewBox="0 0 120 120" className="h-full w-full -rotate-90">
-        <circle cx="60" cy="60" r={radius} fill="none" stroke="var(--border)" strokeWidth="9" />
+    <div className="relative shrink-0" style={{ width: size, height: size }}>
+      <svg viewBox="0 0 100 100" className="h-full w-full -rotate-90">
+        <circle cx="50" cy="50" r={radius} fill="none" stroke="var(--border)" strokeWidth={stroke} />
         <circle
-          cx="60"
-          cy="60"
+          cx="50"
+          cy="50"
           r={radius}
           fill="none"
           stroke={color}
-          strokeWidth="9"
+          strokeWidth={stroke}
           strokeLinecap="round"
           strokeDasharray={circumference}
           strokeDashoffset={offset}
-          style={{ transition: "stroke-dashoffset 700ms ease-out" }}
+          style={{ transition: "stroke-dashoffset 700ms cubic-bezier(0.22, 1, 0.36, 1)" }}
         />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="text-3xl font-extrabold tabular-nums sm:text-4xl">{score}</span>
-        <span className="text-[11px] font-medium text-muted">/ 100</span>
+        <span className="font-extrabold leading-none tabular-nums" style={{ fontSize: size * 0.3 }}>
+          {score}
+        </span>
+        <span className="font-medium text-muted" style={{ fontSize: size * 0.085, marginTop: size * 0.045 }}>
+          / 100
+        </span>
       </div>
     </div>
   );

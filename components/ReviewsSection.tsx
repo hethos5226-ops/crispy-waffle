@@ -28,7 +28,7 @@ export function ReviewsSection({ product }: { product: Product }) {
   const rest = summary.items.slice(3);
 
   return (
-    <div className="rounded-2xl border border-border bg-surface p-5 sm:p-6" style={{ boxShadow: "var(--card-shadow)" }}>
+    <div className="rounded-[22px] border border-border bg-surface p-5 sm:p-6" style={{ boxShadow: "var(--card-shadow)" }}>
       <h2 className="flex items-center gap-1.5 text-[14.5px] font-bold">
         <CheckCircleIcon className="h-4 w-4 text-muted" />
         Reviews

@@ -16,6 +16,9 @@ const nextConfig: NextConfig = {
   assetPrefix: basePath,
   trailingSlash: true,
   images: { unoptimized: true },
+  // Next does not rewrite `src` on unoptimized <Image>/<img>, so anything
+  // pointing at /public needs the prefix applied by hand — see lib/asset.ts.
+  env: { NEXT_PUBLIC_BASE_PATH: basePath },
 };
 
 export default nextConfig;

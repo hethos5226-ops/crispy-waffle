@@ -3,6 +3,7 @@
 import { useRef } from "react";
 import { useRouter } from "next/navigation";
 import { ScanIcon } from "@/components/icons";
+import { Wiz } from "@/components/Wiz";
 import type { Product } from "@/lib/types";
 
 export function ScanScreen({ products }: { products: Product[] }) {
@@ -17,11 +18,14 @@ export function ScanScreen({ products }: { products: Product[] }) {
         <span className="scan-line pointer-events-none absolute left-[12%] right-[12%] h-0.5 rounded-full bg-accent opacity-85" />
         <ScanIcon className="h-9 w-9" />
       </div>
-      <div>
-        <p className="text-[15px] font-bold">Point your camera at a barcode</p>
-        <p className="mt-1 max-w-[280px] text-[13.5px] text-muted">
-          Scanning opens your camera and reads a product&apos;s barcode automatically. Tap below to try a sample result.
-        </p>
+      <div className="flex items-center gap-3">
+        <Wiz pose="magnify" size={76} className="shrink-0" />
+        <div className="text-left">
+          <p className="text-[15px] font-bold">Point your camera at a barcode</p>
+          <p className="mt-1 max-w-[240px] text-[13.5px] text-muted">
+            Scanning opens your camera and reads a product&apos;s barcode automatically. Tap below to try a sample result.
+          </p>
+        </div>
       </div>
       <button
         type="button"
@@ -30,7 +34,7 @@ export function ScanScreen({ products }: { products: Product[] }) {
           rotation.current += 1;
           router.push(`/product/${product.id}`);
         }}
-        className="rounded-full bg-foreground px-5 py-2.5 text-sm font-semibold text-background transition-transform active:scale-95"
+        className="rounded-full bg-foreground px-5 py-2.5 text-sm font-semibold text-background pressable"
       >
         Simulate scan
       </button>

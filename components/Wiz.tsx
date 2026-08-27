@@ -1,59 +1,56 @@
-export type WizExpression = "smile" | "wink" | "excited" | "thinking";
-
-const EYES: Record<WizExpression, React.ReactNode> = {
-  smile: (
-    <>
-      <circle cx="19" cy="27" r="2.6" fill="#12131a" />
-      <circle cx="37" cy="27" r="2.6" fill="#12131a" />
-    </>
-  ),
-  wink: (
-    <>
-      <circle cx="19" cy="27" r="2.6" fill="#12131a" />
-      <path d="M34 27h6" stroke="#12131a" strokeWidth="2.4" strokeLinecap="round" />
-    </>
-  ),
-  excited: (
-    <>
-      <circle cx="19" cy="26" r="3.2" fill="#12131a" />
-      <circle cx="37" cy="26" r="3.2" fill="#12131a" />
-    </>
-  ),
-  thinking: (
-    <>
-      <circle cx="19" cy="28" r="2.4" fill="#12131a" />
-      <circle cx="37" cy="25" r="2.4" fill="#12131a" />
-    </>
-  ),
-};
-
-const MOUTHS: Record<WizExpression, React.ReactNode> = {
-  smile: <path d="M20 37q8 7 16 0" stroke="#12131a" strokeWidth="2.4" fill="none" strokeLinecap="round" />,
-  wink: <path d="M20 37q8 6 16 0" stroke="#12131a" strokeWidth="2.4" fill="none" strokeLinecap="round" />,
-  excited: <ellipse cx="28" cy="39" rx="6" ry="5" fill="#12131a" />,
-  thinking: <path d="M22 39q6 2 12 -1" stroke="#12131a" strokeWidth="2.4" fill="none" strokeLinecap="round" />,
-};
+import Image from "next/image";
+import { asset } from "@/lib/asset";
 
 /**
- * Wiz — BuyWise's original mascot. Drawn as inline SVG (no source asset
- * file was available to embed a pixel-perfect match of the reference
- * artwork), styled to fit the app's own blue/glasses brief.
+ * Wiz — the BuyWise mascot. Each pose is a supplied PNG in /public/wiz.
+ * `head` is the cropped face used for small chrome (header, inline avatars);
+ * the rest are full-body poses for larger moments.
  */
-export function Wiz({ expression = "smile", size = 44, className }: { expression?: WizExpression; size?: number; className?: string }) {
+export type WizPose =
+  | "head"
+  | "wave"
+  | "thumbsUp"
+  | "magnify"
+  | "pointing"
+  | "tablet"
+  | "shoppingBag";
+
+/** Intrinsic sizes of the optimized source files, so Image gets a correct aspect ratio. */
+const POSES: Record<WizPose, { file: string; width: number; height: number }> = {
+  head: { file: "/wiz/head.png", width: 160, height: 146 },
+  wave: { file: "/wiz/wave.png", width: 223, height: 325 },
+  thumbsUp: { file: "/wiz/thumbs-up.png", width: 240, height: 322 },
+  magnify: { file: "/wiz/magnify.png", width: 201, height: 323 },
+  pointing: { file: "/wiz/pointing.png", width: 227, height: 335 },
+  tablet: { file: "/wiz/tablet.png", width: 260, height: 325 },
+  shoppingBag: { file: "/wiz/shopping-bag.png", width: 223, height: 325 },
+};
+
+export function Wiz({
+  pose = "head",
+  size = 44,
+  className = "",
+  priority = false,
+}: {
+  pose?: WizPose;
+  /** Rendered height in px; width follows the pose's aspect ratio. */
+  size?: number;
+  className?: string;
+  priority?: boolean;
+}) {
+  const { file, width, height } = POSES[pose];
+  const renderedWidth = Math.round((width / height) * size);
+
   return (
-    <svg width={size} height={size} viewBox="0 0 56 56" fill="none" aria-hidden className={className}>
-      <path d="M10 14 L16 1 L23 15 Z" fill="#3355e0" />
-      <path d="M46 14 L40 1 L33 15 Z" fill="#3355e0" />
-      <path d="M11.5 14 L16 5 L20.5 15" fill="#eef1ff" />
-      <path d="M44.5 14 L40 5 L35.5 15" fill="#eef1ff" />
-      <circle cx="28" cy="29" r="21" fill="#3f66ee" />
-      <path d="M17 35c2 6.5 6.5 10 11 10s9-3.5 11-10" fill="#eef1ff" opacity="0.95" />
-      <rect x="11" y="23" width="14" height="10" rx="5" fill="none" stroke="#12131a" strokeWidth="2.2" />
-      <rect x="31" y="23" width="14" height="10" rx="5" fill="none" stroke="#12131a" strokeWidth="2.2" />
-      <path d="M25 27h6" stroke="#12131a" strokeWidth="2.2" />
-      {EYES[expression]}
-      <path d="M24 33.5q4 2.2 8 0" stroke="#12131a" strokeWidth="1.4" strokeLinecap="round" opacity="0.45" />
-      {MOUTHS[expression]}
-    </svg>
+    <Image
+      src={asset(file)}
+      alt=""
+      aria-hidden
+      width={renderedWidth}
+      height={size}
+      priority={priority}
+      className={`select-none ${className}`}
+      style={{ height: size, width: renderedWidth }}
+    />
   );
 }

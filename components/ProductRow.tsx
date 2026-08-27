@@ -10,7 +10,7 @@ export function ProductRow({ product, verdict, sub }: { product: Product; verdic
   return (
     <Link
       href={`/product/${product.id}`}
-      className="flex items-center gap-3.5 rounded-2xl border border-border bg-surface p-3 transition-transform active:scale-[0.98]"
+      className="flex items-center gap-3.5 rounded-[20px] border border-border bg-surface p-3 pressable"
       style={{ boxShadow: "var(--card-shadow)" }}
     >
       <ProductGlyph category={product.category} className="h-[52px] w-[52px] shrink-0" />

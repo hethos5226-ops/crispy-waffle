@@ -16,7 +16,7 @@ export function AlternativeCard({
   return (
     <Link
       href={`/product/${product.id}`}
-      className="group flex items-center gap-4 rounded-2xl border border-border bg-surface p-4 transition-all hover:-translate-y-0.5 hover:border-foreground/15"
+      className="group flex items-center gap-4 rounded-[22px] border border-border bg-surface p-4 transition-all hover:-translate-y-0.5 hover:border-foreground/15"
       style={{ boxShadow: "var(--card-shadow)" }}
     >
       <ProductGlyph category={product.category} className="h-14 w-14 shrink-0" />

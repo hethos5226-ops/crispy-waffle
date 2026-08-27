@@ -1,24 +1,29 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Wiz, type WizExpression } from "@/components/Wiz";
+import { Wiz, type WizPose } from "@/components/Wiz";
 import { setOnboarded, useHasOnboarded } from "@/lib/storage";
 
-const STEPS: { expression: WizExpression; title: string; text: string }[] = [
+const STEPS: { pose: WizPose; title: string; text: string }[] = [
   {
-    expression: "excited",
-    title: "Hey! I'm Wiz 👋",
+    pose: "wave",
+    title: "Hey! I'm Wiz",
     text: "I'll help you figure out if something's actually worth buying, before you spend a cent.",
   },
   {
-    expression: "smile",
+    pose: "magnify",
     title: "Search, browse, or scan",
     text: "Find a product in Recs, or scan a barcode, and I'll check today's price against what's typical and dig through the reviews.",
   },
   {
-    expression: "thinking",
+    pose: "pointing",
     title: "I'll always show my work",
     text: "Price, reviews, reliability, warranty, age — every factor behind the score is right there, never just a number.",
+  },
+  {
+    pose: "thumbsUp",
+    title: "Then I'll give you a straight answer",
+    text: "Buy now, wait, or don't buy — with the reasoning right underneath, so you can judge it yourself.",
   },
 ];
 
@@ -82,8 +87,8 @@ export function Onboarding() {
           animation: closing ? "none" : "sheet-in 360ms cubic-bezier(0.32, 0.72, 0, 1)",
         }}
       >
-        <div className="flex justify-center">
-          <Wiz expression={current.expression} size={68} />
+        <div className="flex h-[132px] items-end justify-center">
+          <Wiz key={current.pose} pose={current.pose} size={132} priority className="wiz-pop" />
         </div>
         <p className="mt-3.5 text-lg font-extrabold">{current.title}</p>
         <p className="mx-auto mt-2 max-w-[380px] text-[14.5px] leading-relaxed text-muted">{current.text}</p>
@@ -101,14 +106,14 @@ export function Onboarding() {
           <button
             type="button"
             onClick={dismiss}
-            className={`px-2.5 py-2.5 text-[13px] font-semibold text-muted transition-opacity active:scale-95 ${isLast ? "invisible" : ""}`}
+            className={`px-2.5 py-2.5 text-[13px] font-semibold text-muted pressable ${isLast ? "invisible" : ""}`}
           >
             Skip
           </button>
           <button
             type="button"
             onClick={() => (isLast ? dismiss() : setStep((s) => s + 1))}
-            className="rounded-full bg-foreground px-5 py-2.5 text-sm font-semibold text-background transition-transform active:scale-95"
+            className="rounded-full bg-foreground px-5 py-2.5 text-sm font-semibold text-background pressable"
           >
             {isLast ? "Let's go" : "Next"}
           </button>

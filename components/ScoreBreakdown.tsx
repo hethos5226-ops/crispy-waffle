@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { ScoreFactor } from "@/lib/types";
 import { ChevronDownIcon, SparkleIcon } from "@/components/icons";
 import { factorTone } from "@/lib/verdict";
+import { BREAKDOWN_ID } from "@/components/VerdictHero";
 
 const TONE_VAR: Record<ReturnType<typeof factorTone>, string> = {
   buy: "var(--buy)",
@@ -54,7 +55,11 @@ export function ScoreBreakdown({ factors, weightRedistributed }: { factors: Scor
   const totalWeight = factors.reduce((sum, f) => sum + f.weight, 0);
 
   return (
-    <div className="rounded-2xl border border-border bg-surface p-5 sm:p-6" style={{ boxShadow: "var(--card-shadow)" }}>
+    <div
+      id={BREAKDOWN_ID}
+      className="scroll-mt-20 rounded-[22px] border border-border bg-surface p-5 sm:p-6"
+      style={{ boxShadow: "var(--card-shadow)" }}
+    >
       <div className="flex items-center gap-2 text-[14.5px] font-bold">
         <SparkleIcon className="h-[15px] w-[15px] text-muted" />
         Score breakdown
