@@ -39,3 +39,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# cloudflare worker
+worker/node_modules
+worker/.wrangler
+# local Worker secrets — must never be committed
+worker/.dev.vars

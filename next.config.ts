@@ -15,7 +15,14 @@ const nextConfig: NextConfig = {
   basePath,
   assetPrefix: basePath,
   trailingSlash: true,
-  images: { unoptimized: true },
+  images: {
+    unoptimized: true,
+    // Real listing photography is served from eBay's own image CDN.
+    remotePatterns: [
+      { protocol: "https", hostname: "i.ebayimg.com" },
+      { protocol: "https", hostname: "**.ebayimg.com" },
+    ],
+  },
   // Next does not rewrite `src` on unoptimized <Image>/<img>, so anything
   // pointing at /public needs the prefix applied by hand — see lib/asset.ts.
   env: { NEXT_PUBLIC_BASE_PATH: basePath },

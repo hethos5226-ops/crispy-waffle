@@ -8,6 +8,8 @@ import { ProductRow } from "@/components/ProductRow";
 import { SearchIcon } from "@/components/icons";
 import { VERDICT_META } from "@/lib/verdict";
 import { useTodayLabel } from "@/lib/useToday";
+import { useDebounced } from "@/lib/useDebounced";
+import { LiveResults } from "@/components/LiveResults";
 
 const CATEGORIES: { id: Category | "all"; label: string }[] = [
   { id: "all", label: "All" },
@@ -27,6 +29,7 @@ export function RecsBrowser({ entries }: { entries: CatalogEntry[] }) {
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<Category | "all">("all");
   const updatedLabel = useTodayLabel();
+  const debouncedQuery = useDebounced(query);
 
   const filtered = useMemo(() => {
     let list = entries;
@@ -81,6 +84,10 @@ export function RecsBrowser({ entries }: { entries: CatalogEntry[] }) {
           </button>
         ))}
       </div>
+
+      {/* Real eBay listings for what's been typed; renders nothing when the
+          box is empty or live search isn't configured. */}
+      <LiveResults query={debouncedQuery} />
 
       <div className="mb-3 mt-7 flex items-baseline justify-between gap-2">
         <span className="text-[13px] font-bold uppercase tracking-wide text-muted">Top picks right now</span>

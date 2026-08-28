@@ -1,0 +1,13 @@
+name = "buywise-api"
+main = "src/index.ts"
+compatibility_date = "2024-11-01"
+
+# Non-secret configuration. Credentials are NOT set here — they are uploaded
+# separately with `wrangler secret put`, which stores them encrypted at
+# Cloudflare and keeps them out of this repository.
+[vars]
+EBAY_MARKETPLACE = "EBAY_AU"
+
+# Origins permitted to call this Worker from a browser. Update the first entry
+# if the Pages URL changes; localhost entries are for development.
+ALLOWED_ORIGINS = "https://hethos5226-ops.github.io,http://localhost:3000"

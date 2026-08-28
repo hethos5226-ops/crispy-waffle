@@ -42,6 +42,11 @@ jobs:
         run: npm run build
         env:
           GITHUB_PAGES: "true"
+          # Public URL of the eBay proxy Worker. A repository *variable*, not a
+          # secret: it's the endpoint the browser calls. The eBay credentials
+          # live only inside the Worker and never reach this build.
+          # Leave unset and the app simply runs without live search.
+          NEXT_PUBLIC_BUYWISE_API_URL: ${{ vars.NEXT_PUBLIC_BUYWISE_API_URL }}
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
