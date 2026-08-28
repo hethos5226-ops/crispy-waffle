@@ -2,6 +2,9 @@ name = "buywise-api"
 main = "src/index.ts"
 compatibility_date = "2024-11-01"
 
+# Publish on a *.workers.dev URL, which is what the BuyWise frontend calls.
+workers_dev = true
+
 # Non-secret configuration. Credentials are NOT set here — they are uploaded
 # separately with `wrangler secret put`, which stores them encrypted at
 # Cloudflare and keeps them out of this repository.

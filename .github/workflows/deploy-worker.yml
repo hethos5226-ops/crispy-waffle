@@ -1,0 +1,137 @@
+name: Deploy eBay proxy Worker
+
+# Runs only when asked, or when the Worker's own source changes. Deploying is
+# a deliberate act — it uploads credentials to Cloudflare — so it is never
+# triggered by unrelated pushes.
+on:
+  workflow_dispatch:
+    inputs:
+      upload_secrets:
+        description: "Also upload the eBay credentials to the Worker"
+        type: boolean
+        default: true
+  push:
+    branches: [claude/testing-r61hfk]
+    paths:
+      - "worker/**"
+      - ".github/workflows/deploy-worker.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-worker
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: worker
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: worker/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Catch a broken Worker here rather than after it is already live.
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Check required configuration
+        env:
+          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          EBAY_ID: ${{ secrets.EBAY_CLIENT_ID }}
+          EBAY_SECRET: ${{ secrets.EBAY_CLIENT_SECRET }}
+        run: |
+          missing=""
+          [ -z "$CF_API_TOKEN" ]  && missing="$missing CLOUDFLARE_API_TOKEN"
+          [ -z "$CF_ACCOUNT_ID" ] && missing="$missing CLOUDFLARE_ACCOUNT_ID"
+          [ -z "$EBAY_ID" ]       && missing="$missing EBAY_CLIENT_ID"
+          [ -z "$EBAY_SECRET" ]   && missing="$missing EBAY_CLIENT_SECRET"
+          if [ -n "$missing" ]; then
+            echo "::error::Missing repository secrets:$missing"
+            echo "Add them under Settings → Secrets and variables → Actions → Secrets." >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          echo "All required secrets are present."
+
+      # Deploys the Worker and, in the same step, pushes the eBay credentials
+      # into Cloudflare's encrypted secret store. They travel GitHub Secrets →
+      # Cloudflare only; they are never written to the repo or the build log.
+      - name: Deploy Worker
+        if: ${{ github.event_name == 'push' || inputs.upload_secrets }}
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          workingDirectory: worker
+          secrets: |
+            EBAY_CLIENT_ID
+            EBAY_CLIENT_SECRET
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          EBAY_CLIENT_ID: ${{ secrets.EBAY_CLIENT_ID }}
+          EBAY_CLIENT_SECRET: ${{ secrets.EBAY_CLIENT_SECRET }}
+
+      # Deploy without touching the stored credentials, for code-only changes.
+      - name: Deploy Worker (code only)
+        if: ${{ github.event_name == 'workflow_dispatch' && !inputs.upload_secrets }}
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          workingDirectory: worker
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      # Confirms the Worker answers and reports whether it can see its
+      # credentials — without ever printing them.
+      - name: Verify deployment
+        env:
+          WORKER_URL: ${{ vars.NEXT_PUBLIC_BUYWISE_API_URL }}
+        run: |
+          {
+            echo "## eBay proxy Worker deployed"
+            echo ""
+            if [ -n "$WORKER_URL" ]; then
+              echo "Checking \`$WORKER_URL/health\`…"
+              echo ""
+              if body=$(curl -fsS --max-time 20 "$WORKER_URL/health"); then
+                echo '```json'
+                echo "$body"
+                echo '```'
+                if echo "$body" | grep -q '"configured":true'; then
+                  echo ""
+                  echo "The Worker is live and can see its eBay credentials."
+                else
+                  echo ""
+                  echo "The Worker is live but reports no credentials — re-run with **Also upload the eBay credentials** ticked."
+                fi
+              else
+                echo "Could not reach that URL. If this was the first deploy, check the"
+                echo "\`Deploy Worker\` step above for the assigned \`*.workers.dev\` address."
+              fi
+            else
+              echo "### One step left"
+              echo ""
+              echo "Find the \`https://buywise-api.<your-subdomain>.workers.dev\` URL in the"
+              echo "**Deploy Worker** step above, then add it in GitHub under"
+              echo "**Settings → Secrets and variables → Actions → Variables**:"
+              echo ""
+              echo '```'
+              echo "NEXT_PUBLIC_BUYWISE_API_URL = https://buywise-api.<your-subdomain>.workers.dev"
+              echo '```'
+              echo ""
+              echo "Then run **Deploy to GitHub Pages** so the frontend picks it up."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
