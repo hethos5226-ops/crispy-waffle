@@ -81,7 +81,10 @@ jobs:
           # defaults (50 / 40) apply when these are blank.
           AUDIT_SEARCH_LIMIT: ${{ inputs.search_limit }}
           AUDIT_ITEM_SAMPLE: ${{ inputs.item_sample }}
-        run: node scripts/audit-ebay-coverage.mjs
+        # --experimental-strip-types lets the audit import the app's real
+        # identifier gate (lib/data/catalog/ref.ts) instead of reimplementing
+        # it, so the two can't drift apart.
+        run: node --experimental-strip-types --disable-warning=ExperimentalWarning --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/audit-ebay-coverage.mjs
 
       - name: Upload raw results
         if: always()

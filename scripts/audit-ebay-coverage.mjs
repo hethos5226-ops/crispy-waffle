@@ -25,10 +25,17 @@
  * environment. Never prints them.
  */
 
+import { productRefsFor, usableBrand, usableMpn } from "../lib/data/catalog/ref.ts";
+
 const EBAY_OAUTH_URL = "https://api.ebay.com/identity/v1/oauth2/token";
 const EBAY_BROWSE_URL = "https://api.ebay.com/buy/browse/v1";
 const EBAY_SCOPE = "https://api.ebay.com/oauth/api_scope";
-const ICECAT_URL = "https://live.icecat.biz/api";
+/**
+ * Note the trailing slash and the mandatory `content` parameter — Icecat's
+ * own published example is:
+ *   https://live.icecat.biz/api/?content=&icecat_id=13842019&lang=en&shopname=openIcecat-json
+ */
+const ICECAT_URL = "https://live.icecat.biz/api/";
 
 const MARKETPLACE = process.env.EBAY_MARKETPLACE || "EBAY_AU";
 const CATEGORY_ID = process.env.EBAY_CATEGORY_ID || "293";
@@ -107,24 +114,55 @@ function aspectValue(item, names) {
   return null;
 }
 
-function firstGtin(item) {
-  // getItem exposes gtin; some payloads carry an array of identifiers instead.
-  if (typeof item.gtin === "string" && item.gtin.trim()) return item.gtin.trim();
-  if (Array.isArray(item.gtin) && item.gtin.length) return String(item.gtin[0]);
-  const ean = aspectValue(item, ["ean", "gtin", "upc"]);
-  return ean && /^\d{8,14}$/.test(ean.replace(/\s/g, "")) ? ean.replace(/\s/g, "") : null;
+/** Raw contents of eBay's gtin field, whatever the seller typed into it. */
+function rawGtin(item) {
+  const direct = Array.isArray(item.gtin) ? item.gtin[0] : item.gtin;
+  if (typeof direct === "string" && direct.trim()) return direct.trim();
+  return aspectValue(item, ["ean", "gtin", "upc"]);
+}
+
+/**
+ * Mirrors normalizeGtin() in lib/data/ebay/map.ts.
+ *
+ * The first run of this audit did not do this, and reported 77.5% GTIN
+ * coverage — because sellers type "Does not apply" into the barcode field and
+ * the raw string was counted as a barcode. Measuring the field's *presence*
+ * rather than its *validity* overstated the one number the whole integration
+ * depends on.
+ */
+function normalizeGtin(raw) {
+  if (typeof raw !== "string") return null;
+  const digits = raw.replace(/[\s-]/g, "");
+  if (!/^\d+$/.test(digits)) return null;
+  if (![8, 12, 13, 14].includes(digits.length)) return null;
+  if (/^0+$/.test(digits)) return null;
+  return digits;
 }
 
 function extract(item) {
-  const brand = item.brand ?? aspectValue(item, ["brand"]);
-  const mpn =
-    item.mpn ?? aspectValue(item, ["model", "mpn", "manufacturer part number"]);
+  const rawBrand = item.brand ?? aspectValue(item, ["brand"]) ?? null;
+  const rawMpn =
+    item.mpn ?? aspectValue(item, ["model", "mpn", "manufacturer part number"]) ?? null;
+  const raw = rawGtin(item);
+  const gtin = normalizeGtin(raw);
+
+  // The real gate the app applies, imported rather than reimplemented.
+  const brand = usableBrand(rawBrand);
+  const mpn = usableMpn(rawMpn, brand);
+  const refs = productRefsFor({ gtin, brand: rawBrand, model: rawMpn });
+
   return {
     epid: item.epid ?? null,
-    brand: brand || null,
-    mpn: mpn || null,
-    gtin: firstGtin(item),
+    rawBrand,
+    rawMpn,
+    rawGtin: raw,
+    brand,
+    mpn,
+    gtin,
+    refs,
     hasAspects: Array.isArray(item.localizedAspects) && item.localizedAspects.length > 0,
+    itemId: item.itemId,
+    title: item.title,
   };
 }
 
@@ -136,67 +174,143 @@ function tally(records) {
   const t = {
     total: records.length,
     epid: 0,
-    brand: 0,
-    mpn: 0,
-    gtin: 0,
+    rawBrand: 0, brand: 0,
+    rawMpn: 0, mpn: 0,
+    rawGtin: 0, gtin: 0,
     brandAndMpn: 0,
     aspects: 0,
-    enrichable: 0, // gtin OR (brand AND mpn) — the only matches BuyWise permits
+    enrichable: 0, // what productRefsFor() actually permits
   };
   for (const r of records) {
     if (r.epid) t.epid++;
+    if (r.rawBrand) t.rawBrand++;
     if (r.brand) t.brand++;
+    if (r.rawMpn) t.rawMpn++;
     if (r.mpn) t.mpn++;
+    if (r.rawGtin) t.rawGtin++;
     if (r.gtin) t.gtin++;
     if (r.hasAspects) t.aspects++;
-    const bm = Boolean(r.brand && r.mpn);
-    if (bm) t.brandAndMpn++;
-    if (r.gtin || bm) t.enrichable++;
+    if (r.brand && r.mpn) t.brandAndMpn++;
+    if (r.refs.length > 0) t.enrichable++;
   }
   return t;
 }
 
+/**
+ * Two columns per identifier: how often eBay sends the field at all, and how
+ * often what it sends is actually an identifier. The gap between them is the
+ * seller-typed junk ("Does not apply", "N/A", a whole title in the MPN box)
+ * that BuyWise must refuse to match on.
+ */
 function table(label, t) {
-  const row = (name, n) => `| ${name} | ${n} / ${t.total} | **${pct(n, t.total)}%** |`;
+  const row = (name, raw, valid) =>
+    `| ${name} | ${raw == null ? "—" : `${pct(raw, t.total)}%`} | **${pct(valid, t.total)}%** | ${valid} / ${t.total} |`;
   return [
     `### ${label}`,
     "",
     `Sample size: **${t.total}** listings`,
     "",
-    "| Field | Present | Coverage |",
-    "| --- | --- | --- |",
-    row("ePID (catalog product id)", t.epid),
-    row("Brand", t.brand),
-    row("MPN / model", t.mpn),
-    row("GTIN / EAN / UPC", t.gtin),
-    row("localizedAspects present", t.aspects),
-    row("**Brand + MPN** (Icecat-matchable)", t.brandAndMpn),
-    row("**Enrichable** (GTIN or Brand+MPN)", t.enrichable),
+    "| Field | Field present | Actually usable | Count |",
+    "| --- | --- | --- | --- |",
+    row("ePID (catalog product id)", null, t.epid),
+    row("Brand", t.rawBrand, t.brand),
+    row("MPN / model", t.rawMpn, t.mpn),
+    row("GTIN / EAN / UPC", t.rawGtin, t.gtin),
+    row("localizedAspects present", null, t.aspects),
+    row("**Brand + MPN** (Icecat-matchable)", null, t.brandAndMpn),
+    row("**Enrichable** (GTIN or Brand+MPN)", null, t.enrichable),
     "",
   ].join("\n");
 }
 
-async function icecatLookup(ref, username) {
-  const params = new URLSearchParams({ UserName: username, Language: "en" });
-  if (ref.gtin) params.set("GTIN", ref.gtin);
-  else {
-    params.set("Brand", ref.brand);
-    params.set("ProductCode", ref.mpn);
-  }
+/**
+ * Candidate request formats.
+ *
+ * The first run used `UserName` + `Language` and no `content`, and every
+ * lookup came back 400 — including ones with perfectly valid barcodes, which
+ * is the giveaway that the request itself was malformed rather than the
+ * product being absent. Icecat's own published example is:
+ *
+ *   live.icecat.biz/api/?content=&icecat_id=…&lang=en&shopname=openIcecat-json
+ *
+ * so `shopname`, `lang` and a mandatory (possibly empty) `content` are the
+ * documented shape. The old form is kept as a control: this environment can't
+ * reach Icecat to test, so the audit determines which works rather than
+ * assuming.
+ */
+const ICECAT_VARIANTS = [
+  {
+    name: "shopname + lang + content (documented)",
+    build: (ref, user) => {
+      const p = new URLSearchParams({ shopname: user, lang: "en", content: "" });
+      if (ref.kind === "gtin") p.set("GTIN", ref.gtin);
+      else { p.set("Brand", ref.brand); p.set("ProductCode", ref.mpn); }
+      return p;
+    },
+  },
+  {
+    name: "UserName + Language (first attempt, control)",
+    build: (ref, user) => {
+      const p = new URLSearchParams({ UserName: user, Language: "en" });
+      if (ref.kind === "gtin") p.set("GTIN", ref.gtin);
+      else { p.set("Brand", ref.brand); p.set("ProductCode", ref.mpn); }
+      return p;
+    },
+  },
+];
+
+async function icecatCall(variant, ref, username) {
+  const params = variant.build(ref, username);
   try {
     const res = await fetch(`${ICECAT_URL}?${params}`, { headers: { accept: "application/json" } });
     const text = await res.text();
     let body = null;
-    try {
-      body = JSON.parse(text);
-    } catch {
-      return { ok: false, status: res.status, note: "non-JSON response" };
+    try { body = JSON.parse(text); } catch { /* not JSON */ }
+    if (!body) {
+      return { ok: false, status: res.status, note: text.slice(0, 120).replace(/\s+/g, " ") };
     }
-    const hit = res.ok && body && body.data && !body.StatusCode;
-    return { ok: Boolean(hit), status: res.status, body };
+    const hit = res.ok && body.data && body.StatusCode == null;
+    return {
+      ok: Boolean(hit),
+      status: res.status,
+      body,
+      note: hit ? "" : String(body.Message ?? body.msg ?? body.StatusCode ?? "").slice(0, 120),
+    };
   } catch (e) {
-    return { ok: false, status: 0, note: String(e && e.message) };
+    return { ok: false, status: 0, note: String(e && e.message).slice(0, 120) };
   }
+}
+
+/** Tries each request format against real identifiers and reports which works. */
+async function probeIcecat(refs, username) {
+  const rows = [];
+  let best = ICECAT_VARIANTS[0];
+  let bestScore = -1;
+
+  for (const variant of ICECAT_VARIANTS) {
+    let hits = 0;
+    let notFound = 0;
+    let malformed = 0;
+    for (const ref of refs.slice(0, 4)) {
+      const out = await icecatCall(variant, ref, username);
+      if (out.ok) hits++;
+      else if (out.status === 404) notFound++;
+      else if (out.status === 400) malformed++;
+      rows.push({
+        variant: variant.name,
+        key: ref.kind === "gtin" ? ref.gtin : `${ref.brand} / ${ref.mpn}`,
+        ok: out.ok,
+        status: out.status,
+        note: out.note ?? "",
+      });
+    }
+    // A hit is decisive; failing that, 404 ("no such product") still proves
+    // the request was understood, whereas 400 means it was not.
+    const score = hits * 100 + notFound * 10 - malformed;
+    if (score > bestScore) { bestScore = score; best = variant; }
+  }
+
+  return { rows, best };
 }
 
 /** Records the shape of one real Icecat payload, so the mapper isn't written blind. */
@@ -267,55 +381,88 @@ async function main() {
   const icecatUser = process.env.ICECAT_USERNAME || "";
   let icecatSection = "";
   let icecatStats = null;
+
+  // Only refs the app itself would produce — never a title, never a guess.
+  const allRefs = [];
+  for (const r of items) {
+    for (const ref of r.refs) {
+      allRefs.push(ref);
+      break; // strongest identifier per listing is enough
+    }
+    if (allRefs.length >= ICECAT_SAMPLE) break;
+  }
+
   if (!icecatUser) {
     icecatSection = "### Icecat\n\n`ICECAT_USERNAME` is not set — skipped.\n";
+  } else if (allRefs.length === 0) {
+    icecatSection =
+      "### Icecat\n\nNo listing in the sample carried a usable identifier, so there was nothing to look up.\n";
   } else {
-    const refs = [];
-    for (const r of items) {
-      if (r.gtin) refs.push({ gtin: r.gtin, title: r.title });
-      else if (r.brand && r.mpn) refs.push({ brand: r.brand, mpn: r.mpn, title: r.title });
-      if (refs.length >= ICECAT_SAMPLE) break;
-    }
+    const { rows, best } = await probeIcecat(allRefs, icecatUser);
 
+    const parts = [
+      "### Icecat request-format probe",
+      "",
+      "Each candidate request shape tried against real identifiers. A 400 means the",
+      "request was malformed; a 404 means it was understood but the product is absent.",
+      "",
+      "| Request format | Key | Found | HTTP | Note |",
+      "| --- | --- | --- | --- | --- |",
+      ...rows.map(
+        (r) =>
+          `| ${r.variant} | \`${String(r.key).slice(0, 32)}\` | ${r.ok ? "**yes**" : "no"} | ${r.status} | ${String(r.note).slice(0, 60)} |`
+      ),
+      "",
+      `Best format: **${best.name}**`,
+      "",
+    ];
+
+    // Full run using whichever format the probe found works.
     let hits = 0;
     let firstHitBody = null;
     const attempts = [];
-    for (const ref of refs) {
-      const out = await icecatLookup(ref, icecatUser);
+    for (const ref of allRefs) {
+      const out = await icecatCall(best, ref, icecatUser);
       if (out.ok) {
         hits++;
         if (!firstHitBody) firstHitBody = out.body;
       }
       attempts.push({
-        by: ref.gtin ? "GTIN" : "Brand+MPN",
-        key: ref.gtin ?? `${ref.brand} / ${ref.mpn}`,
+        by: ref.kind === "gtin" ? "GTIN" : "Brand+MPN",
+        key: ref.kind === "gtin" ? ref.gtin : `${ref.brand} / ${ref.mpn}`,
         ok: out.ok,
         status: out.status,
+        note: out.note ?? "",
       });
     }
 
-    icecatStats = { attempted: refs.length, hits };
-    const parts = [
+    icecatStats = { attempted: allRefs.length, hits, format: best.name };
+
+    parts.push(
       "### Icecat resolution",
       "",
-      `Attempted **${refs.length}** lookups using only GTIN or Brand+MPN (no title matching).`,
+      `Attempted **${allRefs.length}** lookups using only GTIN or Brand+MPN (no title matching).`,
       "",
-      `| Result | Count | Rate |`,
-      `| --- | --- | --- |`,
-      `| Datasheet found | ${hits} / ${refs.length} | **${pct(hits, refs.length)}%** |`,
+      "| Result | Count | Rate |",
+      "| --- | --- | --- |",
+      `| Datasheet found | ${hits} / ${allRefs.length} | **${pct(hits, allRefs.length)}%** |`,
       "",
-    ];
-    if (attempts.length) {
-      parts.push("<details><summary>Per-lookup detail</summary>", "");
-      parts.push("| Matched by | Key | Found | HTTP |", "| --- | --- | --- | --- |");
-      for (const a of attempts) {
-        parts.push(`| ${a.by} | \`${String(a.key).slice(0, 48)}\` | ${a.ok ? "yes" : "no"} | ${a.status} |`);
-      }
-      parts.push("", "</details>", "");
-    }
+      "<details><summary>Per-lookup detail</summary>",
+      "",
+      "| Matched by | Key | Found | HTTP | Note |",
+      "| --- | --- | --- | --- | --- |",
+      ...attempts.map(
+        (a) =>
+          `| ${a.by} | \`${String(a.key).slice(0, 40)}\` | ${a.ok ? "yes" : "no"} | ${a.status} | ${String(a.note).slice(0, 60)} |`
+      ),
+      "",
+      "</details>",
+      ""
+    );
+
     if (firstHitBody) {
       parts.push(
-        "<details><summary>Live Icecat response shape (for the mapper)</summary>",
+        "<details><summary>Live Icecat response shape (verifies the mapper's field paths)</summary>",
         "",
         ...describeShape(firstHitBody),
         "",
@@ -323,17 +470,37 @@ async function main() {
         ""
       );
     }
+
     icecatSection = parts.join("\n");
   }
 
+
   // ---- Verdict ----
-  const best = Math.max(searchTally.enrichable / (searchTally.total || 1), itemTally.enrichable / (itemTally.total || 1));
-  const viability =
-    best >= 0.5
-      ? "**Viable.** Enough listings carry hard identifiers to make catalogue enrichment worthwhile."
-      : best >= 0.25
-        ? "**Partially viable.** Enrichment will land on a minority of listings — useful as a bonus layer and as a ranking signal, but it cannot be the backbone."
-        : "**Weak.** Too few listings carry hard identifiers. Enrichment is best used as a quality signal (identified vs unidentified) rather than a content source.";
+  //
+  // Judged on end-to-end success, not on identifier coverage. A listing that
+  // carries a barcode no catalogue recognises is not enriched, so counting it
+  // as a win would overstate the result — which is exactly how the first run
+  // of this audit reached "viable" while resolving zero datasheets.
+  const identifiable = itemTally.enrichable / (itemTally.total || 1);
+  const resolved = icecatStats && icecatStats.attempted > 0 ? icecatStats.hits / icecatStats.attempted : null;
+  const effective = resolved == null ? null : identifiable * resolved;
+
+  let viability;
+  if (effective == null) {
+    viability = "**Unproven.** No Icecat lookups completed, so end-to-end enrichment is untested.";
+  } else if (effective >= 0.4) {
+    viability = `**Viable.** About ${pct(effective, 1)}% of listings end up with a real manufacturer datasheet — enough for catalogue data to be a backbone.`;
+  } else if (effective >= 0.15) {
+    viability = `**Partially viable.** About ${pct(effective, 1)}% of listings resolve end to end — a useful bonus layer and a strong ranking signal, but not a backbone.`;
+  } else {
+    viability = `**Weak.** Only about ${pct(effective, 1)}% of listings resolve end to end. Identification is still worth keeping as a quality signal (identified vs unidentified), but not as a content source.`;
+  }
+
+  // The quota finding, which decides the feed's economics.
+  const costNote =
+    searchTally.enrichable === 0 && itemTally.enrichable > 0
+      ? "**Search results alone cannot be enriched** — identifiers appear only on `getItem`, so enrichment costs one extra API call per listing."
+      : `Search-only enrichable: **${pct(searchTally.enrichable, searchTally.total)}%**, so some enrichment is possible without a per-listing call.`;
 
   lines.push(
     "# eBay AU → Icecat enrichment audit",
@@ -347,7 +514,9 @@ async function main() {
     "",
     viability,
     "",
-    `Search-only enrichable: **${pct(searchTally.enrichable, searchTally.total)}%** · getItem enrichable: **${pct(itemTally.enrichable, itemTally.total)}%**`,
+    `Identifiable via \`getItem\`: **${pct(itemTally.enrichable, itemTally.total)}%** · of those, resolved by Icecat: **${resolved == null ? "n/a" : pct(resolved, 1) + "%"}**`,
+    "",
+    costNote,
     ""
   );
   if (searchErrors.length) {
@@ -360,6 +529,7 @@ async function main() {
     search: searchTally,
     getItem: itemTally,
     icecat: icecatStats,
+    effectiveEnrichmentRate: effective,
   });
 }
 
