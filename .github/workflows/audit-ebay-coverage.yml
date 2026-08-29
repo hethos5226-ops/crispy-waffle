@@ -4,8 +4,24 @@ name: Audit eBay AU data coverage
 # how often does eBay AU supply a GTIN, or a brand *and* an MPN — the only
 # identifiers BuyWise will match Icecat on?
 #
-# Run from the Actions tab. Results land in the run summary.
+# Two triggers, because this needs to be runnable from a feature branch.
+#
+# GitHub only offers a "Run workflow" button for `workflow_dispatch` when the
+# file exists on the repository's *default* branch — which this one does not,
+# and should not until the catalogue work is reviewed. A `push` trigger has no
+# such restriction: it runs from whatever branch was pushed. So pushing this
+# workflow (or the audit script) to the feature branch runs the audit there,
+# and the dispatch button appears later if this ever lands on the default
+# branch.
+#
+# The paths filter keeps unrelated pushes from spending eBay quota — a full
+# run costs roughly 48 of the 5,000 daily calls.
 on:
+  push:
+    branches: [claude/buywise-discovery-feed-d4mwaa]
+    paths:
+      - "scripts/audit-ebay-coverage.mjs"
+      - ".github/workflows/audit-ebay-coverage.yml"
   workflow_dispatch:
     inputs:
       search_limit:
@@ -61,6 +77,8 @@ jobs:
           EBAY_CLIENT_SECRET: ${{ secrets.EBAY_CLIENT_SECRET }}
           ICECAT_USERNAME: ${{ secrets.ICECAT_USERNAME }}
           EBAY_MARKETPLACE: EBAY_AU
+          # `inputs` is empty on a push-triggered run; the script's own
+          # defaults (50 / 40) apply when these are blank.
           AUDIT_SEARCH_LIMIT: ${{ inputs.search_limit }}
           AUDIT_ITEM_SAMPLE: ${{ inputs.item_sample }}
         run: node scripts/audit-ebay-coverage.mjs
