@@ -9,7 +9,14 @@
  * Endpoints
  *   GET /search?q=<query>&limit=<n>   → eBay item_summary/search
  *   GET /item/<itemId>                → eBay getItem
+ *   GET /catalog?gtin=…               → Icecat datasheet by barcode
+ *   GET /catalog?brand=…&mpn=…        → Icecat datasheet by brand + part code
  *   GET /health                       → readiness, without revealing config
+ *
+ * The two data families are kept apart on purpose. /search and /item return
+ * *offers* — what one seller is charging today. /catalog returns a *product* —
+ * what the manufacturer says the thing is. BuyWise never merges them into a
+ * single response, so the frontend can always tell the user which is which.
  */
 
 export interface Env {
@@ -21,19 +28,42 @@ export interface Env {
   ALLOWED_ORIGINS: string;
   /** eBay marketplace, e.g. EBAY_AU. */
   EBAY_MARKETPLACE: string;
+  /**
+   * Open Icecat username. Set with: wrangler secret put ICECAT_USERNAME
+   *
+   * Open Icecat needs no password for JSON requests — the username alone
+   * authorises access to brand-sponsored datasheets. It is still held here
+   * rather than in the frontend so it can't be lifted from the bundle and
+   * spent against our rate limit.
+   */
+  ICECAT_USERNAME: string;
 }
 
 const EBAY_OAUTH_URL = "https://api.ebay.com/identity/v1/oauth2/token";
 const EBAY_BROWSE_URL = "https://api.ebay.com/buy/browse/v1";
 const EBAY_SCOPE = "https://api.ebay.com/oauth/api_scope";
+const ICECAT_URL = "https://live.icecat.biz/api";
 
 /** Cache search results this long at the edge. Prices move slowly; the 5k/day quota does not. */
 const SEARCH_CACHE_SECONDS = 600;
 const ITEM_CACHE_SECONDS = 900;
+/**
+ * Datasheets are effectively static — a manufacturer's spec sheet doesn't
+ * change once published — so they are cached far longer than any price.
+ * "Not found" is cached too, and for the same length: a product Icecat
+ * doesn't cover today won't be covered an hour from now either.
+ */
+const CATALOG_CACHE_SECONDS = 86_400;
 
 const MAX_QUERY_LENGTH = 120;
-const MAX_LIMIT = 24;
+/** eBay permits 200. 50 keeps one call worth roughly one screenful of feed. */
+const MAX_LIMIT = 50;
 const DEFAULT_LIMIT = 12;
+/** eBay caps pagination at 10,000 results. */
+const MAX_OFFSET = 9_999;
+
+/** The only sort values eBay Browse accepts. Anything else is dropped. */
+const ALLOWED_SORTS = new Set(["price", "-price", "newlyListed", "endingSoonest"]);
 
 /* ------------------------------------------------------------------ *
  * OAuth
@@ -121,12 +151,12 @@ function json(body: unknown, init: { status?: number; origin: string | null; cac
  * eBay calls
  * ------------------------------------------------------------------ */
 
-async function callEbay(path: string, env: Env): Promise<unknown> {
+async function callEbay(path: string, env: Env, marketplace?: string): Promise<unknown> {
   const token = await getAccessToken(env);
   const response = await fetch(`${EBAY_BROWSE_URL}${path}`, {
     headers: {
       authorization: `Bearer ${token}`,
-      "X-EBAY-C-MARKETPLACE-ID": env.EBAY_MARKETPLACE || "EBAY_AU",
+      "X-EBAY-C-MARKETPLACE-ID": marketplace || env.EBAY_MARKETPLACE || "EBAY_AU",
       accept: "application/json",
     },
   });
@@ -136,6 +166,71 @@ async function callEbay(path: string, env: Env): Promise<unknown> {
   if (!response.ok) throw new UpstreamError("eBay request failed.", 502);
 
   return response.json();
+}
+
+/* ------------------------------------------------------------------ *
+ * Icecat (product catalogue)
+ * ------------------------------------------------------------------ */
+
+/** A GTIN is 8, 12, 13 or 14 digits. Anything else is not a barcode. */
+function validGtin(value: string): boolean {
+  return /^\d{8,14}$/.test(value) && !/^0+$/.test(value);
+}
+
+/**
+ * Fetches one datasheet.
+ *
+ * Returns null for "Icecat has no such product", which is an ordinary answer
+ * rather than an error: Open Icecat only covers brands that sponsor their own
+ * content, so plenty of legitimate identifiers simply aren't in it. Icecat
+ * signals this inconsistently — sometimes a 4xx, sometimes a 200 carrying a
+ * StatusCode — so both are normalised to the same null here.
+ */
+async function callIcecat(
+  params: { gtin?: string; brand?: string; mpn?: string },
+  env: Env
+): Promise<unknown | null> {
+  const query = new URLSearchParams({
+    UserName: env.ICECAT_USERNAME,
+    Language: "en",
+  });
+  if (params.gtin) {
+    query.set("GTIN", params.gtin);
+  } else if (params.brand && params.mpn) {
+    query.set("Brand", params.brand);
+    query.set("ProductCode", params.mpn);
+  } else {
+    return null;
+  }
+
+  const response = await fetch(`${ICECAT_URL}?${query}`, {
+    headers: { accept: "application/json" },
+  });
+
+  if (response.status === 404 || response.status === 400) return null;
+  if (response.status === 401 || response.status === 403) {
+    // Our credentials, not the user's problem — but don't echo Icecat's body,
+    // which restates the username.
+    throw new UpstreamError("Product catalogue rejected our credentials.", 502);
+  }
+  if (response.status === 429) throw new UpstreamError("Product catalogue rate limit reached.", 429);
+  if (!response.ok) throw new UpstreamError("Product catalogue request failed.", 502);
+
+  let body: unknown;
+  try {
+    body = await response.json();
+  } catch {
+    throw new UpstreamError("Product catalogue returned an unreadable response.", 502);
+  }
+
+  // A 200 with a StatusCode, or with no data block, means "no product".
+  if (body && typeof body === "object") {
+    const b = body as { StatusCode?: unknown; data?: unknown };
+    if (b.StatusCode != null) return null;
+    if (b.data == null) return null;
+  }
+
+  return body;
 }
 
 /* ------------------------------------------------------------------ *
@@ -162,9 +257,77 @@ const worker = {
 
     if (url.pathname === "/health") {
       return json(
-        { ok: true, configured: Boolean(env.EBAY_CLIENT_ID && env.EBAY_CLIENT_SECRET) },
+        {
+          ok: true,
+          // `configured` stays eBay-only so the existing deploy workflow's
+          // check keeps meaning what it always meant.
+          configured: Boolean(env.EBAY_CLIENT_ID && env.EBAY_CLIENT_SECRET),
+          catalogConfigured: Boolean(env.ICECAT_USERNAME),
+          marketplace: env.EBAY_MARKETPLACE || "EBAY_AU",
+        },
         { origin }
       );
+    }
+
+    // The catalogue is an independent integration: it has its own credential
+    // and stays available even if eBay's are missing, so it is checked on its
+    // own route rather than behind the eBay gate below.
+    if (url.pathname === "/catalog") {
+      if (!env.ICECAT_USERNAME) {
+        return json({ error: "Product catalogue is not configured." }, { status: 503, origin });
+      }
+
+      const gtin = (url.searchParams.get("gtin") ?? "").trim();
+      const brand = (url.searchParams.get("brand") ?? "").trim().slice(0, 60);
+      const mpn = (url.searchParams.get("mpn") ?? "").trim().slice(0, 60);
+
+      // Exactly the two identifier shapes BuyWise permits. There is no
+      // title parameter here by design — see lib/data/catalog/ref.ts.
+      let lookup: { gtin?: string; brand?: string; mpn?: string };
+      if (gtin) {
+        if (!validGtin(gtin)) {
+          return json({ error: "Malformed gtin." }, { status: 400, origin });
+        }
+        lookup = { gtin };
+      } else if (brand && mpn) {
+        lookup = { brand, mpn };
+      } else {
+        return json(
+          { error: "Provide either gtin, or both brand and mpn." },
+          { status: 400, origin }
+        );
+      }
+
+      const cache = caches.default;
+      const cacheKey = new Request(url.toString(), { method: "GET" });
+      const hit = await cache.match(cacheKey);
+      if (hit) {
+        const withCors = new Response(hit.body, hit);
+        for (const [k, v] of Object.entries(corsHeaders(origin))) withCors.headers.set(k, v);
+        return withCors;
+      }
+
+      try {
+        const data = await callIcecat(lookup, env);
+        const response =
+          data === null
+            ? json({ error: "No catalogue entry for that identifier." }, {
+                status: 404,
+                origin,
+                cacheSeconds: CATALOG_CACHE_SECONDS,
+              })
+            : json(data, { origin, cacheSeconds: CATALOG_CACHE_SECONDS });
+
+        // Negative answers are cached too — they're stable, and re-asking
+        // Icecat for a product it has never heard of helps nobody.
+        ctx.waitUntil(cache.put(cacheKey, response.clone()));
+        return response;
+      } catch (error) {
+        if (error instanceof UpstreamError) {
+          return json({ error: error.message }, { status: error.status, origin });
+        }
+        return json({ error: "Unexpected error." }, { status: 500, origin });
+      }
     }
 
     if (!env.EBAY_CLIENT_ID || !env.EBAY_CLIENT_SECRET) {
@@ -180,6 +343,15 @@ const worker = {
       for (const [k, v] of Object.entries(corsHeaders(origin))) withCors.headers.set(k, v);
       return withCors;
     }
+
+    // A market may ask for its own eBay marketplace (the AU build never does,
+    // but a future US build will). Constrained to eBay's own id shape because
+    // it is forwarded as a request header.
+    const requestedMarketplace = url.searchParams.get("marketplace");
+    const marketplace =
+      requestedMarketplace && /^EBAY_[A-Z]{2,4}$/.test(requestedMarketplace)
+        ? requestedMarketplace
+        : undefined;
 
     try {
       let response: Response;
@@ -202,13 +374,30 @@ const worker = {
           category_ids: "293",
         });
 
-        const data = await callEbay(`/item_summary/search?${params}`, env);
+        // Optional pass-through, each validated rather than forwarded blind —
+        // these end up in an upstream URL and an upstream header.
+        const sort = url.searchParams.get("sort");
+        if (sort && ALLOWED_SORTS.has(sort)) params.set("sort", sort);
+
+        const offset = Number(url.searchParams.get("offset"));
+        if (Number.isFinite(offset) && offset > 0) {
+          params.set("offset", String(Math.min(Math.trunc(offset), MAX_OFFSET)));
+        }
+
+        const filter = url.searchParams.get("filter");
+        // eBay's filter grammar is commas, colons, braces, brackets and pipes.
+        // Anything outside that charset is not a filter we wrote.
+        if (filter && filter.length <= 200 && /^[A-Za-z0-9_,:|.\[\]{}+\-\s]+$/.test(filter)) {
+          params.set("filter", filter);
+        }
+
+        const data = await callEbay(`/item_summary/search?${params}`, env, marketplace);
         response = json(data, { origin, cacheSeconds: SEARCH_CACHE_SECONDS });
       } else if (url.pathname.startsWith("/item/")) {
         const itemId = decodeURIComponent(url.pathname.slice("/item/".length));
         if (!itemId) return json({ error: "Missing item id" }, { status: 400, origin });
 
-        const data = await callEbay(`/item/${encodeURIComponent(itemId)}`, env);
+        const data = await callEbay(`/item/${encodeURIComponent(itemId)}`, env, marketplace);
         response = json(data, { origin, cacheSeconds: ITEM_CACHE_SECONDS });
       } else {
         return json({ error: "Not found" }, { status: 404, origin });

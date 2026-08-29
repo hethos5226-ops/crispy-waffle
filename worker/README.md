@@ -1,7 +1,13 @@
 # BuyWise API Worker
 
-A Cloudflare Worker that proxies the [eBay Browse API](https://developer.ebay.com/api-docs/buy/browse/overview.html)
-for the BuyWise frontend.
+A Cloudflare Worker that proxies two upstreams for the BuyWise frontend:
+
+- the [eBay Browse API](https://developer.ebay.com/api-docs/buy/browse/overview.html) — **offers**: what a
+  seller is charging for one item, right now
+- [Open Icecat](https://icecat.com/) — **products**: what the manufacturer says the thing is
+
+They are served on separate routes and never merged into one response, so the
+app can always tell a user which of the two it is showing them.
 
 ## Why this exists
 
@@ -46,12 +52,21 @@ Wrangler, Node, or a terminal on your own machine.
 *Repository → Settings → Secrets and variables → Actions → Secrets → New
 repository secret*
 
-| Secret | Value |
-| --- | --- |
-| `CLOUDFLARE_API_TOKEN` | the token from step 2.4 |
-| `CLOUDFLARE_ACCOUNT_ID` | the account id from step 2.3 |
-| `EBAY_CLIENT_ID` | eBay App ID |
-| `EBAY_CLIENT_SECRET` | eBay Cert ID |
+| Secret | Value | Required |
+| --- | --- | --- |
+| `CLOUDFLARE_API_TOKEN` | the token from step 2.4 | yes |
+| `CLOUDFLARE_ACCOUNT_ID` | the account id from step 2.3 | yes |
+| `EBAY_CLIENT_ID` | eBay App ID | yes |
+| `EBAY_CLIENT_SECRET` | eBay Cert ID | yes |
+| `ICECAT_USERNAME` | Open Icecat username | optional |
+
+`ICECAT_USERNAME` is the login from a free [Open Icecat](https://icecat.com/structured-data-content-users/)
+registration — email confirmation, no card. Open Icecat needs no password for
+JSON requests, so the username is the whole credential; it lives here rather
+than in the frontend so it can't be lifted from the bundle and spent against
+our rate limit. Leave it unset and the Worker still serves eBay normally,
+`/catalog` returns 503, and the app simply shows offer data with no product
+datasheets.
 
 ### 4. Run the deployment
 
@@ -92,9 +107,19 @@ healthy and reports `"configured": true`.
 
 | Route | Purpose |
 | --- | --- |
-| `GET /search?q=<query>&limit=<n>` | eBay `item_summary/search`, `fieldgroups=EXTENDED` |
+| `GET /search?q=<query>&limit=<n>` | eBay `item_summary/search`, `fieldgroups=EXTENDED`. Optional `sort`, `offset`, `filter`, `marketplace` — each validated, never forwarded blind |
 | `GET /item/<itemId>` | eBay `getItem` |
+| `GET /catalog?gtin=<gtin>` | Icecat datasheet by barcode |
+| `GET /catalog?brand=<brand>&mpn=<mpn>` | Icecat datasheet by brand + part number |
 | `GET /health` | Reports whether credentials are configured (never their values) |
+
+`/catalog` accepts **only** those two identifier shapes. There is deliberately
+no title or keyword parameter: matching a manufacturer's datasheet to a listing
+by how similar their wording looks would attach official specifications to a
+product that might not be the one being sold. A 404 means "no datasheet for
+that identifier", which is an ordinary answer rather than an error — Open
+Icecat covers brands that sponsor their own content, so plenty of legitimate
+identifiers simply aren't in it.
 
 ## Configuration
 
@@ -111,6 +136,8 @@ draining it:
 
 - Successful responses are cached at Cloudflare's edge (10 min for searches,
   15 min for items), so repeat queries cost no eBay quota.
+- Datasheets are cached for 24 hours, as are catalogue misses — a product
+  Icecat has never heard of won't be in it an hour from now either.
 - The frontend debounces typing, so a search costs one call rather than one
   per keystroke.
 - `limit` is clamped to 24 and query length to 120 characters.

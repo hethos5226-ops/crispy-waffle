@@ -1,0 +1,74 @@
+name: Audit eBay AU data coverage
+
+# Phase 0 of the catalogue work. Answers one question with real numbers:
+# how often does eBay AU supply a GTIN, or a brand *and* an MPN — the only
+# identifiers BuyWise will match Icecat on?
+#
+# Run from the Actions tab. Results land in the run summary.
+on:
+  workflow_dispatch:
+    inputs:
+      search_limit:
+        description: "Listings per search query (max 200)"
+        type: string
+        default: "50"
+      item_sample:
+        description: "Listings to re-fetch via getItem (1 API call each)"
+        type: string
+        default: "40"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: audit-ebay-coverage
+  cancel-in-progress: false
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # Reports what's missing without printing any secret value.
+      - name: Check credentials
+        env:
+          EBAY_ID: ${{ secrets.EBAY_CLIENT_ID }}
+          EBAY_SECRET: ${{ secrets.EBAY_CLIENT_SECRET }}
+          ICECAT_USERNAME: ${{ secrets.ICECAT_USERNAME }}
+        run: |
+          missing=""
+          [ -z "$EBAY_ID" ]     && missing="$missing EBAY_CLIENT_ID"
+          [ -z "$EBAY_SECRET" ] && missing="$missing EBAY_CLIENT_SECRET"
+          if [ -n "$missing" ]; then
+            echo "::error::Missing repository secret(s):$missing"
+            exit 1
+          fi
+          if [ -z "$ICECAT_USERNAME" ]; then
+            echo "::warning::ICECAT_USERNAME not set — the Icecat half of the audit will be skipped."
+          fi
+          echo "Credentials present."
+
+      - name: Run coverage audit
+        env:
+          EBAY_CLIENT_ID: ${{ secrets.EBAY_CLIENT_ID }}
+          EBAY_CLIENT_SECRET: ${{ secrets.EBAY_CLIENT_SECRET }}
+          ICECAT_USERNAME: ${{ secrets.ICECAT_USERNAME }}
+          EBAY_MARKETPLACE: EBAY_AU
+          AUDIT_SEARCH_LIMIT: ${{ inputs.search_limit }}
+          AUDIT_ITEM_SAMPLE: ${{ inputs.item_sample }}
+        run: node scripts/audit-ebay-coverage.mjs
+
+      - name: Upload raw results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: audit-results
+          path: audit-results.json
+          if-no-files-found: ignore
