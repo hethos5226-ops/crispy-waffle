@@ -281,6 +281,39 @@ async function icecatCall(variant, ref, username) {
   }
 }
 
+/**
+ * Control: a product Icecat itself documents as an example.
+ *
+ * Without this, a 0% hit rate is ambiguous — it could mean the integration is
+ * broken, or that eBay AU's products genuinely aren't in Open Icecat. Those
+ * call for completely different decisions, so the audit proves which it is
+ * instead of leaving it to interpretation. A hit here also dumps a real
+ * payload, which is what verifies the mapper's field paths.
+ */
+async function controlProbe(username) {
+  const params = new URLSearchParams({
+    shopname: username,
+    lang: "en",
+    content: "",
+    icecat_id: "13842019",
+  });
+  try {
+    const res = await fetch(`${ICECAT_URL}?${params}`, { headers: { accept: "application/json" } });
+    const text = await res.text();
+    let body = null;
+    try { body = JSON.parse(text); } catch { /* not JSON */ }
+    const ok = res.ok && body && body.data && body.StatusCode == null;
+    return {
+      ok: Boolean(ok),
+      status: res.status,
+      body,
+      note: ok ? "" : String((body && (body.Message ?? body.msg)) ?? text.slice(0, 120)).slice(0, 140),
+    };
+  } catch (e) {
+    return { ok: false, status: 0, note: String(e && e.message) };
+  }
+}
+
 /** Tries each request format against real identifiers and reports which works. */
 async function probeIcecat(refs, username) {
   const rows = [];
@@ -398,9 +431,19 @@ async function main() {
     icecatSection =
       "### Icecat\n\nNo listing in the sample carried a usable identifier, so there was nothing to look up.\n";
   } else {
+    const control = await controlProbe(icecatUser);
     const { rows, best } = await probeIcecat(allRefs, icecatUser);
 
     const parts = [
+      "### Icecat integration control",
+      "",
+      "A product from Icecat's own documented example (`icecat_id=13842019`),",
+      "to distinguish a broken integration from genuine catalogue gaps.",
+      "",
+      control.ok
+        ? `**Control resolved (HTTP ${control.status}).** The credentials, request format and parsing all work, so any misses below are real coverage gaps rather than bugs.`
+        : `**Control failed (HTTP ${control.status}).** ${control.note} — the integration itself may be at fault, so treat the miss rate below as unproven.`,
+      "",
       "### Icecat request-format probe",
       "",
       "Each candidate request shape tried against real identifiers. A 400 means the",
@@ -436,7 +479,7 @@ async function main() {
       });
     }
 
-    icecatStats = { attempted: allRefs.length, hits, format: best.name };
+    icecatStats = { attempted: allRefs.length, hits, format: best.name, controlOk: control.ok };
 
     parts.push(
       "### Icecat resolution",
@@ -464,7 +507,7 @@ async function main() {
       parts.push(
         "<details><summary>Live Icecat response shape (verifies the mapper's field paths)</summary>",
         "",
-        ...describeShape(firstHitBody),
+        ...describeShape(shapeBody),
         "",
         "</details>",
         ""
