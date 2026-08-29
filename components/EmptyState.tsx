@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { Wiz } from "@/components/Wiz";
-import { EXAMPLE_QUERIES } from "@/lib/examples";
 
 export function EmptyState({ heading, message }: { heading: string; message: string }) {
   return (
@@ -11,23 +10,11 @@ export function EmptyState({ heading, message }: { heading: string; message: str
         <p className="max-w-sm text-sm text-muted">{message}</p>
       </div>
 
-      <div className="flex flex-wrap justify-center gap-2">
-        {EXAMPLE_QUERIES.map((example) => (
-          <Link
-            key={example}
-            href={`/result?q=${encodeURIComponent(example)}`}
-            className="rounded-full border border-border bg-surface px-3 py-1.5 text-xs text-muted transition-colors hover:border-foreground/20 hover:text-foreground"
-          >
-            {example}
-          </Link>
-        ))}
-      </div>
-
       <Link
         href="/"
-        className="mt-2 rounded-full bg-foreground px-5 py-2.5 text-sm font-semibold text-background transition-opacity hover:opacity-90"
+        className="pressable mt-2 rounded-full bg-foreground px-5 py-2.5 text-sm font-semibold text-background"
       >
-        Back to search
+        Browse eBay listings
       </Link>
     </main>
   );

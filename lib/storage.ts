@@ -1,6 +1,7 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
+import { isSnapshot, type ListingSnapshot } from "@/lib/data/snapshot";
 
 /**
  * Everything here is per-viewer browser storage, not a real account system.
@@ -13,8 +14,8 @@ import { useSyncExternalStore } from "react";
  * degrade quietly rather than throw.
  */
 
-const HISTORY_KEY = "buywise_history_v1";
-const FAVORITES_KEY = "buywise_favorites_v1";
+const HISTORY_KEY = "buywise_history_v2";
+const FAVORITES_KEY = "buywise_favorites_v2";
 const THEME_KEY = "buywise_theme_v1";
 const ONBOARDED_KEY = "buywise_onboarded_v1";
 
@@ -27,27 +28,24 @@ function subscribe(listener: () => void) {
   return () => listeners.delete(listener);
 }
 
-export interface HistoryEntry {
-  id: string;
-  ts: number;
-}
-
 // ---- History ----
-let historyCache: HistoryEntry[] | null = null;
-const EMPTY_HISTORY: HistoryEntry[] = [];
+// Entries are full snapshots so History can render real titles, prices and
+// images without re-querying eBay for every item on every visit.
+let historyCache: ListingSnapshot[] | null = null;
+const EMPTY_HISTORY: ListingSnapshot[] = [];
 
-function loadHistory(): HistoryEntry[] {
+function loadHistory(): ListingSnapshot[] {
   if (historyCache) return historyCache;
   try {
     const raw = JSON.parse(localStorage.getItem(HISTORY_KEY) ?? "[]");
-    historyCache = Array.isArray(raw) ? raw : [];
+    historyCache = Array.isArray(raw) ? raw.filter(isSnapshot) : [];
   } catch {
     historyCache = [];
   }
   return historyCache;
 }
 
-function writeHistory(next: HistoryEntry[]) {
+function writeHistory(next: ListingSnapshot[]) {
   historyCache = next;
   try {
     localStorage.setItem(HISTORY_KEY, JSON.stringify(next));
@@ -57,35 +55,35 @@ function writeHistory(next: HistoryEntry[]) {
   notify();
 }
 
-export function recordHistory(id: string) {
-  const list = loadHistory().filter((e) => e.id !== id);
-  writeHistory([{ id, ts: Date.now() }, ...list].slice(0, 25));
+export function recordHistory(snapshot: ListingSnapshot) {
+  const list = loadHistory().filter((e) => e.id !== snapshot.id);
+  writeHistory([snapshot, ...list].slice(0, 40));
 }
 
 export function clearHistory() {
   writeHistory([]);
 }
 
-export function useHistory(): HistoryEntry[] {
+export function useHistory(): ListingSnapshot[] {
   return useSyncExternalStore(subscribe, loadHistory, () => EMPTY_HISTORY);
 }
 
 // ---- Favorites ----
-let favoritesCache: string[] | null = null;
-const EMPTY_FAVORITES: string[] = [];
+let favoritesCache: ListingSnapshot[] | null = null;
+const EMPTY_FAVORITES: ListingSnapshot[] = [];
 
-function loadFavorites(): string[] {
+function loadFavorites(): ListingSnapshot[] {
   if (favoritesCache) return favoritesCache;
   try {
     const raw = JSON.parse(localStorage.getItem(FAVORITES_KEY) ?? "[]");
-    favoritesCache = Array.isArray(raw) ? raw : [];
+    favoritesCache = Array.isArray(raw) ? raw.filter(isSnapshot) : [];
   } catch {
     favoritesCache = [];
   }
   return favoritesCache;
 }
 
-function writeFavorites(next: string[]) {
+function writeFavorites(next: ListingSnapshot[]) {
   favoritesCache = next;
   try {
     localStorage.setItem(FAVORITES_KEY, JSON.stringify(next));
@@ -96,10 +94,10 @@ function writeFavorites(next: string[]) {
 }
 
 /** Returns the new favorited state. */
-export function toggleFavorite(id: string): boolean {
+export function toggleFavorite(snapshot: ListingSnapshot): boolean {
   const current = loadFavorites();
-  const nowFav = !current.includes(id);
-  writeFavorites(nowFav ? [id, ...current] : current.filter((x) => x !== id));
+  const nowFav = !current.some((f) => f.id === snapshot.id);
+  writeFavorites(nowFav ? [snapshot, ...current] : current.filter((f) => f.id !== snapshot.id));
   return nowFav;
 }
 
@@ -107,12 +105,12 @@ export function clearFavorites() {
   writeFavorites([]);
 }
 
-export function useFavorites(): string[] {
+export function useFavorites(): ListingSnapshot[] {
   return useSyncExternalStore(subscribe, loadFavorites, () => EMPTY_FAVORITES);
 }
 
 export function useIsFavorite(id: string): boolean {
-  return useFavorites().includes(id);
+  return useFavorites().some((f) => f.id === id);
 }
 
 // ---- Theme ----

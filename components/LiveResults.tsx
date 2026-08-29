@@ -1,7 +1,7 @@
 "use client";
 
 import { useListingSearch } from "@/lib/useListingSearch";
-import { ListingRow } from "@/components/ListingRow";
+import { ListingCard } from "@/components/ListingCard";
 import { ApiErrorState } from "@/components/ApiErrorState";
 import { ProductSourceError } from "@/lib/data/listing";
 
@@ -56,7 +56,7 @@ export function LiveResults({ query }: { query: string }) {
         (state.listings.length > 0 ? (
           <div className="flex flex-col gap-2.5">
             {state.listings.map((listing) => (
-              <ListingRow key={listing.id} listing={listing} />
+              <ListingCard key={listing.id} listing={listing} />
             ))}
           </div>
         ) : (

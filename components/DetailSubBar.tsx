@@ -4,8 +4,9 @@ import { useRouter } from "next/navigation";
 import { ChevronLeftIcon, ShareIcon } from "@/components/icons";
 import { FavoriteButton } from "@/components/FavoriteButton";
 import { useToast } from "@/components/ToastProvider";
+import type { ListingSnapshot } from "@/lib/data/snapshot";
 
-export function DetailSubBar({ productId }: { productId: string }) {
+export function DetailSubBar({ snapshot }: { snapshot: ListingSnapshot }) {
   const router = useRouter();
   const showToast = useToast();
 
@@ -21,7 +22,7 @@ export function DetailSubBar({ productId }: { productId: string }) {
         <ChevronLeftIcon className="h-[18px] w-[18px]" />
       </button>
       <div className="flex items-center gap-2">
-        <FavoriteButton productId={productId} />
+        <FavoriteButton snapshot={snapshot} />
         <button
           type="button"
           aria-label="Share"

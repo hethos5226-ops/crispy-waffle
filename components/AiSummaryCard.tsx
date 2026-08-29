@@ -12,11 +12,10 @@ export function AiSummaryCard({ reasoning }: { reasoning: string }) {
       <Disclosure trigger={<span>How BuyWise calculated this</span>}>
         <p className="pb-1 pt-2.5 text-[13.5px] leading-relaxed text-muted">
           BuyWise Score is a weighted blend of six factors: price &amp; value (30%), reviews &amp; quality (25%),
-          reliability (15%), alternatives (10%), warranty (10%), and product age (10%). Reliability is scored from
-          complaint frequency alone — not from review sentiment — so the two never double-count the same signal.
-          When a factor like warranty or release date isn&apos;t reliably known, it&apos;s excluded and its weight
-          is redistributed rather than guessed. This is demo data; once connected to real data sources, this panel
-          will explain the actual figures behind each score.
+          reliability (15%), alternatives (10%), warranty (10%), and product age (10%). Price is measured against
+          the median of comparable eBay listings in the same condition right now. eBay publishes no price history,
+          review text, warranty terms or release dates, so those factors are marked <em>Not available</em> and
+          excluded — their weight is redistributed across what is actually known, never guessed.
         </p>
       </Disclosure>
     </div>

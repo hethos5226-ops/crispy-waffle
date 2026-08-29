@@ -1,6 +1,6 @@
 import type { Listing } from "@/lib/data/listing";
 import type { ScoreFactor, Verdict } from "@/lib/types";
-import { SCORE_WEIGHTS } from "@/lib/scoring";
+import { SCORE_WEIGHTS } from "@/lib/scoreWeights";
 
 /**
  * Scores a real marketplace listing with the same six-factor model used for
@@ -23,8 +23,9 @@ export interface PriceContext {
 
 export interface ListingAnalysis {
   listing: Listing;
-  score: number;
-  verdict: Verdict;
+  /** Null when eBay supplied too little to score the listing at all. */
+  score: number | null;
+  verdict: Verdict | null;
   factors: ScoreFactor[];
   weightRedistributed: boolean;
   /** Null when there weren't enough comparable listings to say anything. */
@@ -181,10 +182,14 @@ export function analyzeListing(listing: Listing, peers: Listing[]): ListingAnaly
 
   const available = factors.filter((f) => f.score != null);
   const totalWeight = available.reduce((sum, f) => sum + f.weight, 0);
-  const score =
-    totalWeight > 0 ? Math.round(available.reduce((sum, f) => sum + f.score! * f.weight, 0) / totalWeight) : 0;
 
-  const verdict: Verdict = score >= 75 ? "BUY_NOW" : score >= 50 ? "WAIT" : "DONT_BUY";
+  // With nothing scoreable, the honest answer is "we can't say" — not a zero,
+  // which would read as a damning verdict on a product we know nothing about.
+  const score =
+    totalWeight > 0 ? Math.round(available.reduce((sum, f) => sum + f.score! * f.weight, 0) / totalWeight) : null;
+
+  const verdict: Verdict | null =
+    score == null ? null : score >= 75 ? "BUY_NOW" : score >= 50 ? "WAIT" : "DONT_BUY";
 
   return {
     listing,
@@ -210,13 +215,17 @@ function unavailableReliability(): ScoreFactor {
 
 function buildReasoning(
   listing: Listing,
-  verdict: Verdict,
+  verdict: Verdict | null,
   priceContext: PriceContext | null,
   rating: Listing["rating"],
   alternative: Listing | null,
   availableFactorCount: number
 ): string {
   const parts: string[] = [];
+
+  if (verdict === null) {
+    return "eBay didn't publish enough about this listing to score it — no comparable listings to price it against, and no product rating. The listing details below are everything eBay provided.";
+  }
 
   if (verdict === "BUY_NOW") parts.push(`This listing looks like a strong pick right now.`);
   else if (verdict === "WAIT") parts.push(`This listing is reasonable but not a clear buy.`);

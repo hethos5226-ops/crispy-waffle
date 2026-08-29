@@ -10,11 +10,10 @@ import { ExpandablePrice } from "@/components/ExpandablePrice";
 import { DataUnavailable } from "@/components/DataUnavailable";
 import { ListingImage } from "@/components/ListingImage";
 import { DetailSubBar } from "@/components/DetailSubBar";
+import { RecordVisit } from "@/components/RecordVisit";
+import { toSnapshot } from "@/lib/data/snapshot";
+import { formatPriceWithCurrency } from "@/lib/money";
 import { ExternalLinkIcon, StoreIcon, CheckCircleIcon, StarIcon, StarOutlineIcon } from "@/components/icons";
-
-function money(value: number, currency: string) {
-  return new Intl.NumberFormat("en-AU", { style: "currency", currency, maximumFractionDigits: 0 }).format(value);
-}
 
 /**
  * The real-listing counterpart to ResultView. Deliberately uses the same
@@ -23,11 +22,13 @@ function money(value: number, currency: string) {
  */
 export function ListingResultView({ analysis }: { analysis: ListingAnalysis }) {
   const { listing, score, verdict, factors, weightRedistributed, priceContext, alternative } = analysis;
-  const fmt = (v: number) => money(v, listing.currency);
+  const snapshot = toSnapshot(listing, score != null && verdict != null ? { score, verdict } : null);
+  const fmt = (v: number) => formatPriceWithCurrency(v, listing.currency);
 
   return (
     <div className="mx-auto w-full max-w-2xl space-y-5 pb-16">
-      <DetailSubBar productId={listing.id} />
+      <RecordVisit snapshot={snapshot} />
+      <DetailSubBar snapshot={snapshot} />
 
       {/* Identity */}
       <div className="flex items-center gap-4">

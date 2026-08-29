@@ -1,23 +1,10 @@
 import type { PriceAnalysis, PriceStanding, Product, ProductAnalysis, ScoreFactor, Verdict } from "@/lib/types";
 import { getById } from "@/lib/data/products";
+import { SCORE_WEIGHTS } from "@/lib/scoreWeights";
 
 const CHEAP_THRESHOLD = 8; // % below typical price
 const EXPENSIVE_THRESHOLD = -8; // % below typical price (negative = above typical)
 
-/**
- * How much each factor contributes to the composite BuyWise Score. Price
- * and overall value stay the largest single factor; the rest are initial
- * weights meant to be retuned once real warranty/age/review data is
- * flowing in. Change the numbers here — nothing else needs to change.
- */
-export const SCORE_WEIGHTS: Record<ScoreFactor["key"], number> = {
-  price: 0.3,
-  reviews: 0.25,
-  reliability: 0.15,
-  alternatives: 0.1,
-  warranty: 0.1,
-  age: 0.1,
-};
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));

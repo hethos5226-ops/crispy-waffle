@@ -3,19 +3,32 @@
 import Image from "next/image";
 import { useState } from "react";
 import type { Listing } from "@/lib/data/listing";
-import { ProductGlyph } from "@/components/ProductGlyph";
+import { BoxIcon } from "@/components/icons";
 
 /**
- * Real retailer photography, falling back to the existing category glyph if
- * the listing has no image or the remote image fails — so the layout never
- * collapses and the app keeps its own look when imagery is missing.
+ * Retailer photography, with a neutral placeholder when a listing has no
+ * image or the remote image fails to load. The placeholder is deliberately
+ * generic — guessing a product category from the title would be inventing
+ * information eBay didn't give us.
  */
-export function ListingImage({ listing, className = "", sizes = "80px" }: { listing: Listing; className?: string; sizes?: string }) {
+export function ListingImage({
+  listing,
+  className = "",
+  sizes = "80px",
+}: {
+  listing: Listing;
+  className?: string;
+  sizes?: string;
+}) {
   const [failed, setFailed] = useState(false);
   const image = listing.images[0];
 
   if (!image || failed) {
-    return <ProductGlyph category="tv" className={className} />;
+    return (
+      <div className={`flex items-center justify-center rounded-2xl bg-surface-muted text-muted ${className}`}>
+        <BoxIcon className="h-1/3 w-1/3" />
+      </div>
+    );
   }
 
   return (

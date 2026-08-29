@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import Link from "next/link";
 import { TabBar } from "@/components/TabBar";
 import { Wiz } from "@/components/Wiz";
+import { DataModeBadge } from "@/components/DataModeBadge";
 import { ToastProvider } from "@/components/ToastProvider";
 import { Onboarding } from "@/components/Onboarding";
 import "./globals.css";
@@ -46,9 +47,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
                 <Wiz pose="head" size={30} priority />
                 <span className="text-[15px] font-bold tracking-tight">BuyWise</span>
               </Link>
-              <span className="rounded-full border border-border px-2.5 py-1 text-[11px] font-medium tracking-wide text-muted">
-                Demo data
-              </span>
+              <DataModeBadge />
             </div>
           </header>
           <div className="flex-1 pb-24">{children}</div>

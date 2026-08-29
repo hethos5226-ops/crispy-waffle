@@ -174,6 +174,15 @@ export function TrashIcon({ className = "h-4 w-4" }: IconProps) {
   );
 }
 
+/** Placeholder for a listing with no usable image. */
+export function BoxIcon({ className = "h-5 w-5" }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" className={className}>
+      <path d="M4 8l8-4 8 4-8 4-8-4zm0 0v8l8 4m0-8v8m8-12v8l-8 4" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 export function ShieldIcon({ className = "h-4 w-4" }: IconProps) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={className}>

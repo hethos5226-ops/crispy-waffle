@@ -3,9 +3,10 @@
 import { StarIcon, StarOutlineIcon } from "@/components/icons";
 import { toggleFavorite, useIsFavorite } from "@/lib/storage";
 import { useToast } from "@/components/ToastProvider";
+import type { ListingSnapshot } from "@/lib/data/snapshot";
 
-export function FavoriteButton({ productId }: { productId: string }) {
-  const fav = useIsFavorite(productId);
+export function FavoriteButton({ snapshot }: { snapshot: ListingSnapshot }) {
+  const fav = useIsFavorite(snapshot.id);
   const showToast = useToast();
 
   return (
@@ -14,7 +15,7 @@ export function FavoriteButton({ productId }: { productId: string }) {
       aria-label="Favorite"
       aria-pressed={fav}
       onClick={() => {
-        const nowFav = toggleFavorite(productId);
+        const nowFav = toggleFavorite(snapshot);
         showToast(nowFav ? "Added to favorites" : "Removed from favorites");
       }}
       className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-border bg-surface pressable pressable-tight ${

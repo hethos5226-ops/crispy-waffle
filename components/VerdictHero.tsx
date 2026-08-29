@@ -17,7 +17,11 @@ const POSE_FOR_VERDICT: Record<Verdict, WizPose> = {
   DONT_BUY: "pointing",
 };
 
-export function VerdictHero({ score, verdict }: { score: number; verdict: Verdict }) {
+export function VerdictHero({ score, verdict }: { score: number | null; verdict: Verdict | null }) {
+  // Nothing scoreable: say so plainly instead of rendering a zero, which
+  // would look like a verdict against the product rather than missing data.
+  if (score == null || verdict == null) return <UnscoredHero />;
+
   const meta = VERDICT_META[verdict];
 
   function seeWhy() {
@@ -57,6 +61,26 @@ export function VerdictHero({ score, verdict }: { score: number; verdict: Verdic
         {/* Fills the trailing space on wider screens; redundant on mobile, where
             the column layout has no room to spare. */}
         <Wiz pose={POSE_FOR_VERDICT[verdict]} size={124} className="hidden shrink-0 self-end sm:block" />
+      </div>
+    </div>
+  );
+}
+
+/** Shown when eBay supplied too little to score a listing. */
+function UnscoredHero() {
+  return (
+    <div className="overflow-hidden rounded-[28px] border border-border" style={{ boxShadow: "var(--card-shadow)" }}>
+      <div className="flex flex-col items-center gap-4 bg-surface-muted p-7 text-center sm:flex-row sm:gap-6 sm:text-left">
+        <div className="flex h-[110px] w-[110px] shrink-0 items-center justify-center rounded-full border-[8px] border-border">
+          <span className="text-[26px] font-extrabold text-muted">—</span>
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-xs font-bold uppercase tracking-[0.14em] text-muted">BuyWise Score</p>
+          <p className="mt-2 text-lg font-extrabold">Not enough data to score</p>
+          <p className="mt-1.5 text-[13.5px] leading-relaxed text-muted">
+            eBay didn&apos;t publish enough about this listing for a verdict. Everything it did provide is below.
+          </p>
+        </div>
       </div>
     </div>
   );

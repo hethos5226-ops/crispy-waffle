@@ -1,25 +1,25 @@
 import { SubPageHeader } from "@/components/SubPageHeader";
 import { Wiz } from "@/components/Wiz";
-import { SCORE_WEIGHTS } from "@/lib/scoring";
+import { SCORE_WEIGHTS } from "@/lib/scoreWeights";
 
 const FACTORS: { key: keyof typeof SCORE_WEIGHTS; label: string; blurb: string }[] = [
   {
     key: "price",
     label: "Price & Value",
     blurb:
-      "How today's price compares with what the product normally sells for. A price well below its typical level scores highest; one above it drags the score down.",
+      "How this listing's price compares with the median of comparable listings in the same condition on eBay right now. Below the median scores highest; above it drags the score down.",
   },
   {
     key: "reviews",
     label: "Reviews & Quality",
     blurb:
-      "Aggregated sentiment from customer reviews — how satisfied owners actually are once they've lived with the product.",
+      "eBay's own product rating for the listing, when it's matched to a catalog product. Many listings have no rating, in which case this factor is excluded rather than guessed.",
   },
   {
     key: "reliability",
     label: "Reliability",
     blurb:
-      "How many distinct problems keep coming up across reviews. Scored from complaint frequency alone, never from sentiment, so it can't double-count what Reviews & Quality already measured.",
+      "How consistent owner experience is, read from the star breakdown: a product averaging 4 because everyone rates it 4 is not the same as one averaging 4 from a mix of 5s and 1s.",
   },
   {
     key: "alternatives",
@@ -96,9 +96,9 @@ export default function ScoringPage() {
           Its weight is redistributed across the factors that are known, rather than filled in with a guess.
         </p>
         <p>
-          <span className="font-semibold text-foreground">Weights will change.</span> These are starting values. As real
-          pricing and review data replaces the current demo data, the weights will be tuned against how well the score
-          predicts genuinely good purchases.
+          <span className="font-semibold text-foreground">Weights will change.</span> These are starting values. As more
+          retailers and richer data are connected, the weights will be tuned against how well the score predicts
+          genuinely good purchases.
         </p>
       </div>
 
@@ -131,7 +131,9 @@ export default function ScoringPage() {
       </div>
 
       <p className="mt-6 text-center text-xs text-muted">
-        BuyWise is currently running on demo data — scores illustrate the method, not live market prices.
+        Scores are calculated from live eBay listing data. eBay doesn&apos;t publish price history, review text,
+        warranty terms or release dates, so those factors show as <em>Not available</em> and are excluded from the
+        score rather than estimated.
       </p>
     </main>
   );
