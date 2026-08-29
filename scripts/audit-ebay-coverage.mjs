@@ -503,7 +503,10 @@ async function main() {
       ""
     );
 
-    if (firstHitBody) {
+    // Fall back to the control product when nothing resolved, so the mapper's
+    // field paths still get verified against a real payload.
+    const shapeBody = firstHitBody ?? (control.ok ? control.body : null);
+    if (shapeBody) {
       parts.push(
         "<details><summary>Live Icecat response shape (verifies the mapper's field paths)</summary>",
         "",
