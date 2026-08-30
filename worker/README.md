@@ -53,27 +53,6 @@ repository secret*
 | `EBAY_CLIENT_ID` | eBay App ID |
 | `EBAY_CLIENT_SECRET` | eBay Cert ID |
 
-### 4. Run the deployment
-
-*Actions → **Deploy eBay proxy Worker** → Run workflow*, leaving **Also upload
-the eBay credentials** ticked.
-
-The run checks all four secrets are present, typechecks the Worker, deploys
-it, and uploads the eBay credentials to Cloudflare's encrypted store. Its
-summary prints the assigned `https://buywise-api.<subdomain>.workers.dev` URL.
-
-### 5. Point the frontend at it
-
-*Settings → Secrets and variables → Actions → **Variables** → New variable*
-
-```
-NEXT_PUBLIC_BUYWISE_API_URL = https://buywise-api.<your-subdomain>.workers.dev
-```
-
-This is a **variable, not a secret** — the URL is public by design, since it
-is the endpoint the browser calls. The eBay credentials remain only in
-Cloudflare.
-
 Then run *Actions → **Deploy to GitHub Pages** → Run workflow* so the frontend
 is rebuilt with the URL baked in. Live eBay results will appear in the app.
 
@@ -92,9 +71,10 @@ healthy and reports `"configured": true`.
 
 | Route | Purpose |
 | --- | --- |
-| `GET /search?q=<query>&limit=<n>` | eBay `item_summary/search`, `fieldgroups=EXTENDED` |
+| `GET /search?q=<query>&limit=<n>` | eBay `item_summary/search`, `fieldgroups=EXTENDED`. Optional `sort`, `offset`, `filter`, `marketplace` — each validated, never forwarded blind |
 | `GET /item/<itemId>` | eBay `getItem` |
 | `GET /health` | Reports whether credentials are configured (never their values) |
+
 
 ## Configuration
 

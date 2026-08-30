@@ -1,5 +1,5 @@
 import type { Listing, ListingCondition, ListingImage, ListingRating, ListingSeller } from "@/lib/data/listing";
-import type { EbayImage, EbayItemSummary } from "@/lib/data/ebay/types";
+import type { EbayImage, EbayItem, EbayItemSummary } from "@/lib/data/ebay/types";
 
 /**
  * Translates eBay's wire format into BuyWise's retailer-neutral `Listing`.
@@ -65,6 +65,24 @@ function mapRating(item: EbayItemSummary): ListingRating | null {
   return { average, count: r.reviewCount ?? 0, histogram };
 }
 
+/**
+ * A GTIN is only usable if it really is one. eBay's `gtin` arrives as a bare
+ * string or an array, and aspect-sourced values can carry spaces, hyphens or
+ * outright junk. Anything that isn't a plain 8/12/13/14-digit number is
+ * discarded rather than passed on — a wrong barcode would resolve to a
+ * confidently wrong product datasheet, which is worse than none at all.
+ */
+function normalizeGtin(raw: unknown): string | null {
+  const first = Array.isArray(raw) ? raw[0] : raw;
+  if (typeof first !== "string") return null;
+  const digits = first.replace(/[\s-]/g, "");
+  if (!/^\d+$/.test(digits)) return null;
+  if (![8, 12, 13, 14].includes(digits.length)) return null;
+  // All-zero and other degenerate placeholders show up in seller-entered data.
+  if (/^0+$/.test(digits)) return null;
+  return digits;
+}
+
 /** Brand/model come from a dedicated field when present, else from item aspects. */
 function aspectValue(item: EbayItemSummary, names: string[]): string | null {
   for (const aspect of item.localizedAspects ?? []) {
@@ -77,14 +95,18 @@ function aspectValue(item: EbayItemSummary, names: string[]): string | null {
   return null;
 }
 
-export function mapEbayItem(item: EbayItemSummary): Listing | null {
+export function mapEbayItem(item: EbayItem): Listing | null {
   // Without an id, title, URL and price there is nothing usable to show.
   const price = item.price?.value != null ? Number(item.price.value) : NaN;
   if (!item.itemId || !item.title || !item.itemWebUrl || !Number.isFinite(price)) return null;
 
+  const listedAt = item.itemCreationDate ? Date.parse(item.itemCreationDate) : NaN;
+
   return {
     id: `ebay:${item.itemId}`,
     retailer: "ebay",
+    productId: item.epid ?? null,
+    gtin: normalizeGtin(item.gtin) ?? normalizeGtin(aspectValue(item, ["ean", "upc", "gtin"])),
     title: item.title,
     url: item.itemWebUrl,
     price,
@@ -97,6 +119,9 @@ export function mapEbayItem(item: EbayItemSummary): Listing | null {
     seller: mapSeller(item),
     rating: mapRating(item),
     marketplace: item.listingMarketplaceId ?? null,
+    buyingOptions: item.buyingOptions ?? [],
+    listedAt: Number.isFinite(listedAt) ? listedAt : null,
+    topRatedSeller: item.topRatedBuyingExperience ?? null,
   };
 }
 

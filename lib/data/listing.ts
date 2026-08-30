@@ -51,6 +51,18 @@ export interface Listing {
   /** Stable id, namespaced by retailer, e.g. "ebay:v1|123456|0". */
   id: string;
   retailer: RetailerId;
+  /**
+   * Retailer's own catalog product id (eBay ePID), when the listing is
+   * matched to one. Null for most listings — a seller can list anything
+   * without eBay recognising it as a known product.
+   */
+  productId: string | null;
+  /**
+   * Global Trade Item Number (EAN/UPC), digits only. This and brand+MPN are
+   * the *only* identifiers BuyWise will match a product catalogue on.
+   * Null unless the retailer published one.
+   */
+  gtin: string | null;
   title: string;
   /** Retailer's own product/listing page. */
   url: string;
@@ -66,6 +78,16 @@ export interface Listing {
   rating: ListingRating | null;
   /** Marketplace the listing belongs to, e.g. "EBAY_AU". */
   marketplace: string | null;
+  /** e.g. ["FIXED_PRICE"]. Empty when the retailer didn't say. */
+  buyingOptions: string[];
+  /**
+   * When this *listing* was created, epoch ms. Not the product's release
+   * date — eBay publishes no such thing, and conflating the two would
+   * invent a product age from a seller's posting date.
+   */
+  listedAt: number | null;
+  /** Retailer's own trusted-seller flag. Null when not published. */
+  topRatedSeller: boolean | null;
 }
 
 /** A search result set plus enough context to explain what was searched. */
@@ -81,10 +103,23 @@ export interface ListingSearchResult {
  * talk only to this, so adding Amazon Australia (or any other retailer)
  * means writing one more implementation — no UI changes.
  */
+export interface SourceRequestOptions {
+  signal?: AbortSignal;
+  /**
+   * Retailer-specific marketplace/region id, supplied by the active `Market`
+   * (e.g. eBay's "EBAY_AU"). Omitted means "whatever the backend defaults to",
+   * which is how the Australian build runs today.
+   */
+  marketplace?: string;
+}
+
 export interface ProductSource {
   readonly id: RetailerId;
-  search(query: string, opts?: { limit?: number; signal?: AbortSignal }): Promise<ListingSearchResult>;
-  getById(id: string, opts?: { signal?: AbortSignal }): Promise<Listing | null>;
+  search(
+    query: string,
+    opts?: SourceRequestOptions & { limit?: number; sort?: string; offset?: number }
+  ): Promise<ListingSearchResult>;
+  getById(id: string, opts?: SourceRequestOptions): Promise<Listing | null>;
 }
 
 /** Distinguishes "the API said no results" from "the API call itself failed". */

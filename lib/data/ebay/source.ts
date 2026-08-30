@@ -3,6 +3,7 @@ import {
   type Listing,
   type ListingSearchResult,
   type ProductSource,
+  type SourceRequestOptions,
 } from "@/lib/data/listing";
 import type { EbayItem, EbaySearchResponse } from "@/lib/data/ebay/types";
 import { mapEbayItem, toEbayItemId } from "@/lib/data/ebay/map";
@@ -66,9 +67,15 @@ async function request<T>(path: string, signal?: AbortSignal): Promise<T> {
 export class EbayProductSource implements ProductSource {
   readonly id = "ebay" as const;
 
-  async search(query: string, opts: { limit?: number; signal?: AbortSignal } = {}): Promise<ListingSearchResult> {
+  async search(
+    query: string,
+    opts: SourceRequestOptions & { limit?: number; sort?: string; offset?: number } = {}
+  ): Promise<ListingSearchResult> {
     const params = new URLSearchParams({ q: query });
     if (opts.limit) params.set("limit", String(opts.limit));
+    if (opts.sort) params.set("sort", opts.sort);
+    if (opts.offset) params.set("offset", String(opts.offset));
+    if (opts.marketplace) params.set("marketplace", opts.marketplace);
 
     const data = await request<EbaySearchResponse>(`/search?${params}`, opts.signal);
     const listings = (data.itemSummaries ?? [])
@@ -78,8 +85,12 @@ export class EbayProductSource implements ProductSource {
     return { query, listings, total: data.total ?? null };
   }
 
-  async getById(id: string, opts: { signal?: AbortSignal } = {}): Promise<Listing | null> {
-    const data = await request<EbayItem>(`/item/${encodeURIComponent(toEbayItemId(id))}`, opts.signal);
+  async getById(id: string, opts: SourceRequestOptions = {}): Promise<Listing | null> {
+    const query = opts.marketplace ? `?marketplace=${encodeURIComponent(opts.marketplace)}` : "";
+    const data = await request<EbayItem>(
+      `/item/${encodeURIComponent(toEbayItemId(id))}${query}`,
+      opts.signal
+    );
     return mapEbayItem(data);
   }
 }

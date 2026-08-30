@@ -1,0 +1,78 @@
+name: Measure canonical product resolution
+
+# The go/no-go for the product-first architecture. Downloads the Open Icecat
+# index, filters it to BuyWise's categories, measures the resulting static
+# asset, then resolves a real eBay AU sample against it under the strict
+# identity rules (genuine brand + MPN; GTIN never identity alone).
+#
+# Push-triggered because the workflow lives on a feature branch, where GitHub
+# offers no "Run workflow" button — that requires the default branch.
+on:
+  push:
+    branches: [claude/buywise-discovery-feed-d4mwaa]
+    paths:
+      - "scripts/measure-product-resolution.mjs"
+      - ".github/workflows/measure-product-resolution.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: measure-product-resolution
+  cancel-in-progress: false
+
+jobs:
+  measure:
+    runs-on: ubuntu-latest
+    # The index download and per-category getItem calls dominate; fail loudly
+    # rather than hanging if Icecat is slow.
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Check credentials
+        env:
+          EBAY_ID: ${{ secrets.EBAY_CLIENT_ID }}
+          EBAY_SECRET: ${{ secrets.EBAY_CLIENT_SECRET }}
+          ICECAT_USERNAME: ${{ secrets.ICECAT_USERNAME }}
+          ICECAT_PASSWORD: ${{ secrets.ICECAT_PASSWORD }}
+        run: |
+          missing=""
+          [ -z "$EBAY_ID" ]        && missing="$missing EBAY_CLIENT_ID"
+          [ -z "$EBAY_SECRET" ]    && missing="$missing EBAY_CLIENT_SECRET"
+          [ -z "$ICECAT_USERNAME" ] && missing="$missing ICECAT_USERNAME"
+          if [ -n "$missing" ]; then
+            echo "::error::Missing repository secret(s):$missing"
+            exit 1
+          fi
+          # Open Icecat's JSON product API takes the username alone, but the
+          # bulk index download is HTTP Basic and may need the password too.
+          # The script probes and reports rather than assuming either way.
+          if [ -z "$ICECAT_PASSWORD" ]; then
+            echo "::warning::ICECAT_PASSWORD not set — index download may return 401."
+          fi
+          echo "Credentials present."
+
+      - name: Measure
+        env:
+          EBAY_CLIENT_ID: ${{ secrets.EBAY_CLIENT_ID }}
+          EBAY_CLIENT_SECRET: ${{ secrets.EBAY_CLIENT_SECRET }}
+          ICECAT_USERNAME: ${{ secrets.ICECAT_USERNAME }}
+          ICECAT_PASSWORD: ${{ secrets.ICECAT_PASSWORD }}
+          EBAY_MARKETPLACE: EBAY_AU
+        run: node --experimental-strip-types --disable-warning=ExperimentalWarning --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/measure-product-resolution.mjs
+
+      - name: Upload index sample
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: icecat-index-sample
+          path: icecat-index-sample.json
+          if-no-files-found: ignore
