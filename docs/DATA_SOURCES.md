@@ -16,17 +16,78 @@ The question all of this was trying to answer:
 
 ## Contents
 
+0. [Why the listing-first approach failed](#0-why-the-listing-first-approach-failed)
 1. [What we tested](#1-what-we-tested)
 2. [eBay Browse API](#2-ebay-browse-api--accepted)
 3. [eBay Catalog API](#3-ebay-catalog-api--rejected)
 4. [Icecat Open](#4-icecat-open--rejected-as-a-backbone)
 5. [UPCitemdb](#5-upcitemdb--rejected)
-6. [Go-UPC](#6-go-upc--deferred)
+6. [Go-UPC](#6-go-upc--deferred-untested)
 7. [Amazon PA-API / Creators API](#7-amazon-pa-api--creators-api--rejected)
 8. [Best Buy](#8-best-buy--deferred)
 9. [Keepa](#9-keepa--deferred)
 10. [Two failure modes worth remembering](#10-two-failure-modes-worth-remembering)
 11. [Summary](#11-summary)
+
+---
+
+## 0. Why the listing-first approach failed
+
+Before any of the source research below, BuyWise worked a different way: it
+searched eBay, took whatever listings came back, and scored **each listing as
+though it were its own product**. That approach was abandoned, and it is worth
+being precise about why, because the reasons are structural rather than fixable
+by better engineering.
+
+### It made two thirds of the scoring model unanswerable
+
+The six factors ask questions about a *product*. A marketplace listing cannot
+answer most of them, because a listing is a statement about one seller's stock,
+not about the thing being sold. In `lib/listingAnalysis.ts` — the listing-first
+scorer still powering the app today — this is visible in the code:
+
+| Factor | Weight | On an eBay listing |
+| --- | ---: | --- |
+| Price & Value | 30% | needs ≥2 comparable listings in the same condition |
+| Reviews & Quality | 25% | `null` unless eBay catalog-matched the item — rare |
+| Reliability | 15% | `null` unless a rating histogram exists — rarer |
+| Alternatives | 10% | needs comparable listings |
+| **Warranty** | **10%** | **hardcoded `null` — eBay publishes no warranty terms** |
+| **Product Age** | **10%** | **hardcoded `null` — eBay publishes no release dates** |
+
+**20% of the weight is missing on every listing, always. Typically ~60% is
+missing**, once Reviews and Reliability drop out too. The redistribution logic
+kept that honest rather than hiding it, so most listings scored on roughly 40%
+of the model, and many showed "Not enough data to score" outright.
+
+That is not a data-source problem that a better API fixes. It is a category
+error: asking a listing questions only a product can answer.
+
+### The listings themselves were mostly not products
+
+The eBay AU sample in §2 shows the second half of the problem:
+
+- **51.6%** of listings had a usable brand — the rest said `Unbranded`,
+  `Generic`, or `Does not apply`.
+- **19.6%** had a genuine brand *and* part number.
+- So **roughly 80% of listings cannot be tied to a real product at all**, no
+  matter which catalogue we pair them with.
+
+A feed built from arbitrary listings is therefore mostly unidentifiable stock,
+scored on a minority of the model. Neither problem is solved by trying harder
+on the listing side.
+
+### What replaced it
+
+Invert the direction. Start from a **canonical product** BuyWise already knows
+is real, then search eBay for **offers** of that product. The product answers
+the six factors; the offers supply price, condition and seller. Listings that
+cannot be verified as that product are simply not shown, rather than being
+scored badly.
+
+This is the architecture described in `BUYWISE_ARCHITECTURE.md`. It is blocked
+on exactly one thing: a reliable source of canonical products — which is what
+the rest of this document set out to find, and did not.
 
 ---
 

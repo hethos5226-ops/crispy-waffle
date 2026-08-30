@@ -4,16 +4,79 @@ BuyWise turns "should I buy this?" into a single, evidence-based answer:
 🟢 **BUY NOW**, 🟡 **WAIT**, or 🔴 **DON'T BUY** — with the reasoning shown,
 not hidden.
 
-> **Status: paused, mid-research.** The app works and runs on live eBay AU
-> data. The next phase — a product-first discovery feed — is blocked on an
-> unsolved problem: no free data source we have measured can supply canonical
-> product identity for Australian consumer electronics.
->
-> **Start here when picking this back up:**
-> - [`docs/BUYWISE_ARCHITECTURE.md`](docs/BUYWISE_ARCHITECTURE.md) — where this
->   is going, and the "When I return" checklist.
-> - [`docs/DATA_SOURCES.md`](docs/DATA_SOURCES.md) — every data source tested,
->   with the actual measurements. Don't redo this research.
+---
+
+# 🅿️ Project status — returning to BuyWise
+
+**BuyWise is parked.** Last worked on August 2026. The app builds, deploys and
+runs on live eBay AU data; nothing is broken. It is paused because of an
+unsolved *data* problem, not a code problem.
+
+### What BuyWise is for
+
+BuyWise analyses **real, recognisable products** — an Apple iPhone 16, a Sony
+TV, a pair of JBL headphones. It is **not** an app that scores arbitrary,
+low-quality eBay listings.
+
+```
+CanonicalProduct: Sony WH-1000XM5      ← the thing BuyWise understands
+  ├─ Offer   eBay AU  $399             ← places you can buy it
+  ├─ Offer   eBay AU  $429
+  └─ Offer   eBay AU  $449
+```
+
+An earlier version scored each eBay listing as if it were its own product.
+That approach failed, measurably — see
+[why listing-first failed](docs/DATA_SOURCES.md#0-why-the-listing-first-approach-failed).
+
+### Rules that do not change
+
+1. **The six scoring factors are fixed:** Price & Value, Reviews & Quality,
+   Reliability, Alternatives, Warranty, Product Age.
+2. **Missing data is never guessed.** A factor without a reliable source
+   returns `null`, is shown as unavailable with the reason, and its weight is
+   redistributed across the factors that could answer. No averages, no
+   defaults, no plausible-looking placeholders.
+3. **Identity must be earned.** A seller-supplied barcode can never identify a
+   product on its own, and even brand + part number agreement is not
+   sufficient — see [the LG stand](docs/DATA_SOURCES.md#102-brand--mpn-agreement-is-still-not-sufficient).
+
+### ⛔ Do not build the feed yet
+
+The Reels-style discovery feed is designed but deliberately unbuilt. **It
+should not be built until there is a reliable canonical product source.** The
+feed is the easy part and it is worthless without real products to put in it.
+
+### ➡️ The next decision when you return
+
+**Test whether Icecat's bulk index is usable.** It is the only avenue never
+tested — all five index URLs returned `401`, because the bulk index needs an
+HTTP Basic **password** while the JSON API works with the username alone.
+
+1. Obtain an Icecat password, add it as the repository secret `ICECAT_PASSWORD`.
+2. Run *Actions → **Measure canonical product resolution***.
+3. It reports the filtered index size and whether seeding a local canonical
+   catalogue is viable.
+
+**If the index is good** → build the pre-filtered static index and the
+product-first resolution path. The resolver and its guards are already written
+and tested.
+
+**If the index is poor** → the decision moves to one of two things, and both
+need a deliberate call rather than a default:
+- relax the matching rule (exact model token + brand + accessory guard + price
+  sanity, in the product-first direction only), or
+- pivot market to Best Buy — the only free source found with canonical
+  products *and* real review text, at the cost of becoming US-first.
+
+### Read these two documents first
+
+| Document | What it holds |
+| --- | --- |
+| [`docs/DATA_SOURCES.md`](docs/DATA_SOURCES.md) | Every data source tested, with the actual measurements. **Don't redo this research.** |
+| [`docs/BUYWISE_ARCHITECTURE.md`](docs/BUYWISE_ARCHITECTURE.md) | Where this is going, the entity model, and the full return checklist. |
+
+---
 
 ## The idea
 

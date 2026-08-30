@@ -44,6 +44,61 @@ PRODUCT FIRST  (what BuyWise is for)
 
 ---
 
+## The two entities
+
+Almost every design decision in BuyWise follows from keeping these apart.
+
+### `CanonicalProduct` — the actual, recognisable product
+
+The thing a person means when they say "a Sony WH-1000XM5". It exists whether
+or not anyone is selling one today, and it is the same product regardless of
+who sells it.
+
+- **Identity:** `brand` + `mpn` (manufacturer part number). Both required.
+- **Carries:** official name, specifications, official images, release date,
+  reviews, reliability history, warranty terms.
+- **Answers:** *is this any good? is it old? is something better? is it
+  reliable?*
+- **Defined in:** `lib/data/product.ts`
+
+### `Offer` — one seller's listing of that product
+
+A specific eBay listing. It is not a product; it is an opportunity to buy one.
+Ten sellers listing the same headphones produce **one** `CanonicalProduct` and
+**ten** `Offer`s.
+
+- **Identity:** the listing id, plus the `productId` it was resolved to.
+- **Carries:** price, currency, condition, seller, shipping, listing URL, and
+  the `MatchEvidence` explaining why it was tied to that product.
+- **Answers:** *what does it cost here? what condition? is this seller any
+  good?*
+- **Defined in:** `lib/data/product.ts`, wrapping the raw `Listing`
+
+### Why the split matters
+
+| Question | Answered by |
+| --- | --- |
+| Is this product any good? | Product |
+| Is it reliable? | Product |
+| How old is it? | Product |
+| Is there a better alternative? | Product |
+| What's the warranty? | Product |
+| **What does it cost?** | **Offer** |
+| **What condition is it in?** | **Offer** |
+| **Is this seller trustworthy?** | **Offer** |
+| **Is this a good price?** | **Both** — offer price against the product's other offers and its history |
+
+Four of the six scoring factors are product-level questions. Ask them of a
+listing and they cannot be answered, which is precisely what went wrong with
+the earlier listing-first design — see
+[`DATA_SOURCES.md` §0](DATA_SOURCES.md#0-why-the-listing-first-approach-failed).
+
+A blunt way to hold it in mind:
+
+> **The product is the noun. The offer is where you can get it.**
+
+---
+
 ## The model
 
 ```
