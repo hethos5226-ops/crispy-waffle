@@ -224,6 +224,45 @@ function identify(item) {
   return { rawBrand, rawMpn, brand, mpn, gtin, title: item.title ?? "", epid: item.epid ?? null };
 }
 
+/**
+ * Resolves brand + MPN through Icecat's live JSON API.
+ *
+ * Used when the bulk index is unavailable. Same identity rule as the local
+ * index path — brand and part code together, never a barcode — but one HTTP
+ * request per listing rather than a hash lookup. Returns the datasheet too,
+ * so product-level coverage can be measured without fetching twice.
+ */
+async function resolveLive(brand, mpn) {
+  const params = new URLSearchParams({
+    shopname: ICECAT_USER, lang: "en", content: "", Brand: brand, ProductCode: mpn,
+  });
+  let body = null;
+  let status = 0;
+  try {
+    const res = await fetch(`${ICECAT_LIVE}?${params}`, { headers: { accept: "application/json" } });
+    status = res.status;
+    body = await res.json();
+  } catch {
+    return { hit: null, status };
+  }
+  if (!body || body.StatusCode != null || !body.data) return { hit: null, status };
+  const gi = body.data.GeneralInfo ?? {};
+  const icecatId = gi.IcecatId != null ? String(gi.IcecatId) : null;
+  if (!icecatId) return { hit: null, status };
+  return {
+    status,
+    body,
+    hit: {
+      p: icecatId,
+      b: gi.Brand || gi.BrandInfo?.BrandName || brand,
+      m: gi.BrandPartCode || gi.ProductCode || mpn,
+      n: gi.ProductName || gi.Title || null,
+      c: null,
+      k: 1,
+    },
+  };
+}
+
 /* ------------------------------------------------------------------ *
  * Main
  * ------------------------------------------------------------------ */
@@ -245,18 +284,24 @@ async function main() {
   say("");
   if (!index) {
     say(
-      "**No index could be downloaded.** Open Icecat's bulk index needs HTTP Basic",
-      "auth; the JSON product API accepts the username alone but the index does not.",
-      "Add an `ICECAT_PASSWORD` secret and re-run.",
+      "**No index could be downloaded.** Open Icecat's bulk index is HTTP Basic and",
+      "needs a password; the JSON product API accepts the username alone, which is why",
+      "product lookups work while the index does not. Add an `ICECAT_PASSWORD` secret",
+      "to measure the static asset size.",
+      "",
+      "Matching is measured anyway, via the live JSON API by **Brand + ProductCode** —",
+      "the same brand+MPN identity rule, one request per listing instead of a local",
+      "lookup. That answers whether canonical resolution works; only the index size",
+      "question waits on the password.",
       ""
     );
-    return finish();
+  } else {
+    say(`Using **${index.url}** (HTTP ${index.status}).`, "");
   }
-  say(`Using **${index.url}** (HTTP ${index.status}).`, "");
 
   /* ---- B. Reference lists ---- */
-  const suppliers = await loadRefs(SUPPLIERS_URL, "ID", ["Name"]);
-  const cats = await loadRefs(CATEGORIES_URL, "ID", ["Value", "Name"]);
+  const suppliers = index ? await loadRefs(SUPPLIERS_URL, "ID", ["Name"]) : { map: new Map(), status: "skipped" };
+  const cats = index ? await loadRefs(CATEGORIES_URL, "ID", ["Value", "Name"]) : { map: new Map(), status: "skipped" };
   say("## B. Reference lists", "");
   say("| List | HTTP | Entries |", "| --- | --- | --- |");
   say(`| Suppliers (brands) | ${suppliers.status} | ${suppliers.map.size} |`);
@@ -277,7 +322,7 @@ async function main() {
   let rawBytes = 0;
   const catCounts = new Map();
 
-  for await (const line of lines(index.res, index.url)) {
+  if (index) for await (const line of lines(index.res, index.url)) {
     rows++;
     rawBytes += line.length + 1;
     const productId = line.match(/Product_ID="([^"]+)"/)?.[1];
@@ -313,6 +358,9 @@ async function main() {
   const json = JSON.stringify(kept);
   const gz = gzipSync(Buffer.from(json));
   say("## C. Filtered index size", "");
+  if (!index) {
+    say("**Pending** — requires `ICECAT_PASSWORD`. Everything below is unaffected.", "");
+  } else {
   say("| Measure | Value |", "| --- | --- |");
   say(`| Index rows scanned | ${rows.toLocaleString()} |`);
   say(`| Raw index streamed | ${bytes(rawBytes)} |`);
@@ -322,10 +370,17 @@ async function main() {
   say(`| **Static asset, gzipped** | **${bytes(gz.length)}** |`);
   say("");
   writeFileSync("icecat-index-sample.json", JSON.stringify(kept.slice(0, 50), null, 2));
+  }
 
   /* ---- D + E. eBay sample and resolution ---- */
   const token = await ebayToken();
-  say("## D/E. eBay AU listings resolved against the index", "");
+  say("## D/E. eBay AU listings resolved to canonical products", "");
+  say(
+    index
+      ? "Resolved against the local filtered index."
+      : "Resolved via Icecat's live JSON API by Brand + ProductCode (index unavailable).",
+    ""
+  );
 
   const overall = { seen: 0, brand: 0, mpn: 0, both: 0, matched: 0, brandAgree: 0, gtinOnly: 0 };
   const perCategory = [];
@@ -357,14 +412,23 @@ async function main() {
       if (!(info.brand && info.mpn)) continue;
       stat.both++; overall.both++;
 
-      const hit = mpnIndex.get(`${normBrand(info.brand)}|${normMpn(info.mpn)}`);
+      let hit = null;
+      let sheet = null;
+      if (mpnIndex.size > 0) {
+        hit = mpnIndex.get(`${normBrand(info.brand)}|${normMpn(info.mpn)}`) ?? null;
+      } else {
+        await sleep(250);
+        const live = await resolveLive(info.brand, info.mpn);
+        hit = live.hit;
+        sheet = live.body ?? null;
+      }
       if (!hit) continue;
       stat.matched++; overall.matched++;
       // Brand equality is implied by the key, but recorded explicitly so the
       // rule is visible in the output rather than assumed from the lookup.
       const agree = normBrand(hit.b) === normBrand(info.brand);
       if (agree) { stat.brandAgree++; overall.brandAgree++; }
-      matchedEntries.push({ ...hit, ebayTitle: info.title, ebayBrand: info.brand, ebayMpn: info.mpn });
+      matchedEntries.push({ ...hit, sheet, ebayTitle: info.title, ebayBrand: info.brand, ebayMpn: info.mpn });
     }
     perCategory.push(stat);
   }
@@ -392,15 +456,17 @@ async function main() {
     const sample = matchedEntries.slice(0, DATASHEET_SAMPLE);
     let ok = 0, withRelease = 0, withSpecs = 0, withImages = 0, specTotal = 0;
     for (const [i, entry] of sample.entries()) {
-      if (i > 0) await sleep(300);
+      if (i > 0 && !entry.sheet) await sleep(300);
       const params = new URLSearchParams({
         shopname: ICECAT_USER, lang: "en", content: "", icecat_id: entry.p,
       });
-      let body = null;
-      try {
-        const res = await fetch(`${ICECAT_LIVE}?${params}`, { headers: { accept: "application/json" } });
-        body = await res.json();
-      } catch { /* counted as a miss below */ }
+      let body = entry.sheet ?? null;
+      if (!body) {
+        try {
+          const res = await fetch(`${ICECAT_LIVE}?${params}`, { headers: { accept: "application/json" } });
+          body = await res.json();
+        } catch { /* counted as a miss below */ }
+      }
       const d = body?.data;
       if (!d || body?.StatusCode != null) continue;
       ok++;
