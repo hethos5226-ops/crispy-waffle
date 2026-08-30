@@ -622,16 +622,22 @@ async function main() {
   for (const candidate of CATALOGUE_CANDIDATES) {
     const st = catalogueStats[candidate.id];
     if (!st || !st.tested) {
-      verdictRows.push(`| ${candidate.label} | not tested | — |`);
+      verdictRows.push(`| ${candidate.label} | not tested | — | — |`);
       continue;
     }
     const matchRate = st.attempted ? st.hits / st.attempted : 0;
-    const endToEnd = gtinRate * matchRate;
+    // Only a match whose brand agrees with eBay's is a usable match. A
+    // barcode that resolves to a different product is worse than no match:
+    // it would put someone else's product on the card. Counting raw hits
+    // rated UPCitemdb "partially viable" at 41.7% when 4 of its 5 matches
+    // were for unrelated goods.
+    const verified = st.attempted ? st.agreement.agrees / st.attempted : 0;
+    const endToEnd = gtinRate * verified;
     verdictRows.push(
-      `| ${candidate.label} | ${pct(matchRate, 1)}% of GTINs | **${pct(endToEnd, 1)}% of listings** |`
+      `| ${candidate.label} | ${pct(matchRate, 1)}% | ${pct(verified, 1)}% | **${pct(endToEnd, 1)}%** |`
     );
     if (!bestSource || endToEnd > bestSource.endToEnd) {
-      bestSource = { label: candidate.label, matchRate, endToEnd };
+      bestSource = { label: candidate.label, matchRate, verified, endToEnd };
     }
   }
 
@@ -639,11 +645,14 @@ async function main() {
   if (!bestSource) {
     viability = "**Unproven.** No catalogue could be tested in this run.";
   } else if (bestSource.endToEnd >= 0.3) {
-    viability = `**Viable.** ${bestSource.label} enriches about ${pct(bestSource.endToEnd, 1)}% of listings end to end — enough to carry real product content.`;
+    viability = `**Viable.** ${bestSource.label} correctly enriches about ${pct(bestSource.endToEnd, 1)}% of listings end to end — enough to carry real product content.`;
   } else if (bestSource.endToEnd >= 0.12) {
-    viability = `**Partially viable.** ${bestSource.label} enriches about ${pct(bestSource.endToEnd, 1)}% of listings end to end — a useful bonus layer and a ranking signal, but not a backbone.`;
+    viability = `**Partially viable.** ${bestSource.label} correctly enriches about ${pct(bestSource.endToEnd, 1)}% of listings end to end — a bonus layer and a ranking signal, but not a backbone.`;
   } else {
-    viability = `**Weak.** The best source (${bestSource.label}) enriches only about ${pct(bestSource.endToEnd, 1)}% of listings end to end. Drop catalogue enrichment and keep identification as a ranking signal.`;
+    viability =
+      `**Weak.** The best source (${bestSource.label}) correctly enriches only about ${pct(bestSource.endToEnd, 1)}% of listings ` +
+      `— it matched ${pct(bestSource.matchRate, 1)}% of barcodes, but only ${pct(bestSource.verified, 1)}% of those matches agreed with the brand eBay stated. ` +
+      `Drop catalogue enrichment and keep identification as a ranking signal.`;
   }
 
   // Request cost per feed card, which decides the feed's economics.
@@ -681,8 +690,8 @@ async function main() {
     "",
     `Listings carrying a valid GTIN: **${pct(itemTally.gtin, itemTally.total)}%** (via \`getItem\`)`,
     "",
-    "| Source | GTIN match rate | End-to-end enrichment |",
-    "| --- | --- | --- |",
+    "| Source | Raw match rate | Brand-verified | End-to-end enrichment |",
+    "| --- | --- | --- | --- |",
     ...verdictRows,
     "",
     ...costNote
