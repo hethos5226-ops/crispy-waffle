@@ -52,7 +52,7 @@ const QUERIES = [
 
 const SEARCH_LIMIT = Number(process.env.AUDIT_SEARCH_LIMIT || 50);
 /** How many listings to re-fetch via getItem. Each is one more API call. */
-const ITEM_SAMPLE = Number(process.env.AUDIT_ITEM_SAMPLE || 40);
+const ITEM_SAMPLE = Number(process.env.AUDIT_ITEM_SAMPLE || 80);
 /** How many valid GTINs to try against each catalogue candidate. */
 const CATALOGUE_SAMPLE = Number(process.env.AUDIT_CATALOGUE_SAMPLE || 25);
 
@@ -241,9 +241,16 @@ function emptyProduct() {
   return { name: null, brand: null, model: null, images: [], specs: 0, category: null, description: null };
 }
 
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
 const CATALOGUE_CANDIDATES = [
   {
     id: "upcitemdb",
+    // The trial endpoint enforces a burst limit as well as the daily cap and
+    // answers TOO_FAST (429) when it is exceeded. An unthrottled first run
+    // lost 3 of 9 lookups that way, which would have been miscounted as
+    // misses rather than as unknowns.
+    throttleMs: 1500,
     label: "UPCitemdb (free trial tier)",
     keyEnv: null,
     limits:
@@ -281,6 +288,8 @@ const CATALOGUE_CANDIDATES = [
   {
     id: "go-upc",
     label: "Go-UPC",
+    throttleMs: 600, // documented cap: 2 requests/second
+
     keyEnv: "GOUPC_API_KEY",
     limits:
       "No documented free API tier — paid plans only, max 2 requests/second. Untestable without a key.",
@@ -347,19 +356,20 @@ async function probeCatalogue(candidate, refs, ebayByGtin) {
 
   const rows = [];
   let hits = 0;
-  let rateLimited = false;
+  let rateLimited = 0;
   const fieldCounts = { name: 0, brand: 0, model: 0, images: 0, specs: 0, category: 0, description: 0 };
   const agreement = { agrees: 0, conflicts: 0, unverifiable: 0 };
   let sample = null;
 
-  for (const ref of refs) {
+  for (const [index, ref] of refs.entries()) {
+    if (index > 0 && candidate.throttleMs) await sleep(candidate.throttleMs);
     let out;
     try {
       out = await candidate.lookup(ref.gtin, key);
     } catch (e) {
       out = { ok: false, status: 0, note: String(e && e.message).slice(0, 80), product: emptyProduct() };
     }
-    if (out.status === 429) rateLimited = true;
+    if (out.status === 429) rateLimited++;
 
     let agree = "unverifiable";
     if (out.ok) {
@@ -383,6 +393,9 @@ async function probeCatalogue(candidate, refs, ebayByGtin) {
       status: out.status,
       name: out.product.name,
       brand: out.product.brand,
+      // eBay's own title, so a barcode that resolves to an unrelated product
+      // is visible rather than counted as a clean match.
+      ebayTitle: ebayByGtin.get(ref.gtin)?.title ?? "",
       agree: out.ok ? agree : "",
       note: out.ok ? "" : String(out.note ?? "").slice(0, 50),
     });
@@ -491,7 +504,7 @@ async function main() {
       }
 
       const { rows, hits, attempted, fieldCounts, agreement, rateLimited, sample } = result;
-      catalogueStats[candidate.id] = { tested: true, attempted, hits, fieldCounts, agreement };
+      catalogueStats[candidate.id] = { tested: true, attempted, hits, rateLimited, fieldCounts, agreement };
 
       catalogueParts.push(
         "| Measure | Value |",
@@ -502,8 +515,11 @@ async function main() {
         `| Free-tier limits | ${candidate.limits} |`,
         ""
       );
-      if (rateLimited) {
-        catalogueParts.push("> **Rate limit hit during this run (HTTP 429)** — the match rate above is a floor, not a measurement.", "");
+      if (rateLimited > 0) {
+        catalogueParts.push(
+          `> **${rateLimited} of ${attempted} lookups were rate limited (HTTP 429)** — those are unknowns, not misses, so the match rate above is a floor rather than a measurement.`,
+          ""
+        );
       }
 
       if (hits > 0) {
@@ -536,11 +552,11 @@ async function main() {
       catalogueParts.push(
         "<details><summary>Per-GTIN detail</summary>",
         "",
-        "| GTIN | Found | HTTP | Returned name | Brand | Cross-check | Note |",
-        "| --- | --- | --- | --- | --- | --- | --- |",
+        "| GTIN | Found | HTTP | eBay listing says | Catalogue says | Brand | Cross-check | Note |",
+        "| --- | --- | --- | --- | --- | --- | --- | --- |",
         ...rows.map(
           (r) =>
-            `| \`${r.gtin}\` | ${r.ok ? "**yes**" : "no"} | ${r.status} | ${(r.name ?? "").slice(0, 44)} | ${r.brand ?? ""} | ${r.agree} | ${r.note} |`
+            `| \`${r.gtin}\` | ${r.ok ? "**yes**" : "no"} | ${r.status} | ${String(r.ebayTitle).slice(0, 40)} | ${(r.name ?? "").slice(0, 40)} | ${r.brand ?? ""} | ${r.agree} | ${r.note} |`
         ),
         "",
         "</details>",

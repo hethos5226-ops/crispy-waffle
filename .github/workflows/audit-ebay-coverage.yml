@@ -32,7 +32,7 @@ on:
       item_sample:
         description: "Listings to re-fetch via getItem (1 API call each)"
         type: string
-        default: "40"
+        default: "80"
 
 permissions:
   contents: read
