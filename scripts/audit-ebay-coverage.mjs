@@ -53,8 +53,17 @@ const QUERIES = [
 const SEARCH_LIMIT = Number(process.env.AUDIT_SEARCH_LIMIT || 50);
 /** How many listings to re-fetch via getItem. Each is one more API call. */
 const ITEM_SAMPLE = Number(process.env.AUDIT_ITEM_SAMPLE || 80);
-/** How many valid GTINs to try against each catalogue candidate. */
-const CATALOGUE_SAMPLE = Number(process.env.AUDIT_CATALOGUE_SAMPLE || 25);
+/**
+ * How many valid GTINs to try against each catalogue candidate.
+ *
+ * Kept small deliberately. The binding constraint is the catalogue's rate
+ * limit, not eBay's quota, and a dozen clean answers say more than thirty
+ * mostly-rate-limited ones.
+ */
+const CATALOGUE_SAMPLE = Number(process.env.AUDIT_CATALOGUE_SAMPLE || 12);
+
+/** How long to wait out a 429 before the single retry. */
+const RATE_LIMIT_BACKOFF_MS = Number(process.env.AUDIT_BACKOFF_MS || 20000);
 
 function requireEnv(name) {
   const v = process.env[name];
@@ -250,7 +259,7 @@ const CATALOGUE_CANDIDATES = [
     // answers TOO_FAST (429) when it is exceeded. An unthrottled first run
     // lost 3 of 9 lookups that way, which would have been miscounted as
     // misses rather than as unknowns.
-    throttleMs: 1500,
+    throttleMs: 4000,
     label: "UPCitemdb (free trial tier)",
     keyEnv: null,
     limits:
@@ -348,6 +357,32 @@ function brandAgreement(catalogueBrand, ebayBrand) {
   return "conflicts";
 }
 
+/**
+ * One lookup, retried once through a 429.
+ *
+ * UPCitemdb's trial endpoint answers TOO_FAST well before its documented
+ * daily cap — on GitHub's shared runner IPs the quota appears to be consumed
+ * by other callers too, so spacing requests alone does not avoid it. A single
+ * backoff turns most of those unknowns into real answers; whatever still
+ * comes back 429 is reported as an unknown rather than counted as a miss.
+ */
+async function lookupWithBackoff(candidate, gtin, key) {
+  let out;
+  try {
+    out = await candidate.lookup(gtin, key);
+  } catch (e) {
+    return { ok: false, status: 0, note: String(e && e.message).slice(0, 80), product: emptyProduct() };
+  }
+  if (out.status !== 429) return out;
+
+  await sleep(RATE_LIMIT_BACKOFF_MS);
+  try {
+    return await candidate.lookup(gtin, key);
+  } catch (e) {
+    return { ok: false, status: 0, note: String(e && e.message).slice(0, 80), product: emptyProduct() };
+  }
+}
+
 async function probeCatalogue(candidate, refs, ebayByGtin) {
   const key = candidate.keyEnv ? process.env[candidate.keyEnv] : null;
   if (candidate.keyEnv && !key) {
@@ -363,12 +398,7 @@ async function probeCatalogue(candidate, refs, ebayByGtin) {
 
   for (const [index, ref] of refs.entries()) {
     if (index > 0 && candidate.throttleMs) await sleep(candidate.throttleMs);
-    let out;
-    try {
-      out = await candidate.lookup(ref.gtin, key);
-    } catch (e) {
-      out = { ok: false, status: 0, note: String(e && e.message).slice(0, 80), product: emptyProduct() };
-    }
+    const out = await lookupWithBackoff(candidate, ref.gtin, key);
     if (out.status === 429) rateLimited++;
 
     let agree = "unverifiable";
