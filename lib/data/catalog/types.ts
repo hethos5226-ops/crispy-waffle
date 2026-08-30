@@ -4,9 +4,9 @@
  *
  * Two different kinds of truth, deliberately kept apart:
  *
- *   ProductSource  (eBay)    — one seller's offer. Price, condition, seller.
- *   ProductCatalog (Icecat)  — the manufacturer's product. Specs, official
- *                              name and photography, release date.
+ *   ProductSource  — one seller's offer. Price, condition, seller.
+ *   ProductCatalog — the manufacturer's product. Specs, official name and
+ *                    photography, release date.
  *
  * They must never be blurred in the UI, because their trust levels differ.
  * A price is a fact about a listing that changes hourly; a datasheet is
@@ -18,10 +18,14 @@
  * the UI or the scoring engine changes.
  */
 
-export type CatalogSourceId = "icecat" | "bestbuy";
+/**
+ * No source is implemented yet. Open Icecat was built against this interface
+ * and removed after measurement: it resolved 0 of 14 live eBay AU identifiers.
+ * The seam stays because the next candidate plugs into it unchanged.
+ */
+export type CatalogSourceId = "bestbuy";
 
 export const CATALOG_LABELS: Record<CatalogSourceId, string> = {
-  icecat: "Icecat",
   bestbuy: "Best Buy",
 };
 
@@ -70,7 +74,7 @@ export interface CatalogRating {
 
 /** A manufacturer-described product, independent of who is selling it. */
 export interface CatalogProduct {
-  /** Namespaced by source, e.g. "icecat:1234567". */
+  /** Namespaced by source, e.g. "bestbuy:6501354". */
   id: string;
   source: CatalogSourceId;
   /** The official product name, as the brand publishes it. */

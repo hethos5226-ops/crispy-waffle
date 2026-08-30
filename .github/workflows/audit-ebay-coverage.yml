@@ -1,8 +1,9 @@
 name: Audit eBay AU data coverage
 
-# Phase 0 of the catalogue work. Answers one question with real numbers:
-# how often does eBay AU supply a GTIN, or a brand *and* an MPN — the only
-# identifiers BuyWise will match Icecat on?
+# Phase 0 of the catalogue work. Answers two questions with real numbers:
+# how often does eBay AU supply a GTIN or a brand *and* an MPN — the only
+# identifiers BuyWise will match on — and whether any product catalogue can
+# actually resolve them.
 #
 # Two triggers, because this needs to be runnable from a feature branch.
 #
@@ -57,7 +58,7 @@ jobs:
         env:
           EBAY_ID: ${{ secrets.EBAY_CLIENT_ID }}
           EBAY_SECRET: ${{ secrets.EBAY_CLIENT_SECRET }}
-          ICECAT_USERNAME: ${{ secrets.ICECAT_USERNAME }}
+          GOUPC_API_KEY: ${{ secrets.GOUPC_API_KEY }}
         run: |
           missing=""
           [ -z "$EBAY_ID" ]     && missing="$missing EBAY_CLIENT_ID"
@@ -66,8 +67,11 @@ jobs:
             echo "::error::Missing repository secret(s):$missing"
             exit 1
           fi
-          if [ -z "$ICECAT_USERNAME" ]; then
-            echo "::warning::ICECAT_USERNAME not set — the Icecat half of the audit will be skipped."
+          # UPCitemdb's trial endpoint needs no credential at all. Go-UPC has
+          # no free API tier, so without a key it is reported as untested
+          # rather than guessed at.
+          if [ -z "$GOUPC_API_KEY" ]; then
+            echo "::warning::GOUPC_API_KEY not set — Go-UPC will be reported as not tested."
           fi
           echo "Credentials present."
 
@@ -75,7 +79,7 @@ jobs:
         env:
           EBAY_CLIENT_ID: ${{ secrets.EBAY_CLIENT_ID }}
           EBAY_CLIENT_SECRET: ${{ secrets.EBAY_CLIENT_SECRET }}
-          ICECAT_USERNAME: ${{ secrets.ICECAT_USERNAME }}
+          GOUPC_API_KEY: ${{ secrets.GOUPC_API_KEY }}
           EBAY_MARKETPLACE: EBAY_AU
           # `inputs` is empty on a push-triggered run; the script's own
           # defaults (50 / 40) apply when these are blank.

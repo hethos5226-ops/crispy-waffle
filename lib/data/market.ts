@@ -1,7 +1,6 @@
 import type { ProductSource } from "@/lib/data/listing";
 import type { ProductCatalog } from "@/lib/data/catalog/types";
 import { ebaySource } from "@/lib/data/ebay/source";
-import { icecatCatalog } from "@/lib/data/catalog/icecat/source";
 
 /**
  * Which sources BuyWise runs on, for a given country.
@@ -45,7 +44,12 @@ export const AU_MARKET: Market = {
   currency: "AUD",
   locale: "en-AU",
   offerSources: [ebaySource],
-  catalogSources: [icecatCatalog],
+  // Empty by measurement, not by omission. Open Icecat was integrated and
+  // audited against live eBay AU data: it resolved 0 of 14 real identifiers
+  // while a control lookup returned HTTP 200, so the misses were coverage
+  // gaps rather than a broken integration. Shipping it would have added a
+  // per-listing API call to display nothing. See the Phase 0 audit workflow.
+  catalogSources: [],
 };
 
 /**
@@ -53,7 +57,7 @@ export const AU_MARKET: Market = {
  * and so adding Best Buy is an edit rather than a design exercise:
  *
  *   offerSources:   [bestBuySource, ebaySource]
- *   catalogSources: [bestBuyCatalog, icecatCatalog]
+ *   catalogSources: [bestBuyCatalog]
  *
  * Best Buy is listed first in both because it supplies canonical products and
  * genuine customer review text, which is exactly what eBay cannot.

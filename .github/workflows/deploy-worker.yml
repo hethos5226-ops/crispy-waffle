@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       upload_secrets:
-        description: "Also upload the eBay + Icecat credentials to the Worker"
+        description: "Also upload the eBay credentials to the Worker"
         type: boolean
         default: true
   push:
@@ -59,7 +59,6 @@ jobs:
           CF_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           EBAY_ID: ${{ secrets.EBAY_CLIENT_ID }}
           EBAY_SECRET: ${{ secrets.EBAY_CLIENT_SECRET }}
-          ICECAT_USER: ${{ secrets.ICECAT_USERNAME }}
           MANUAL: ${{ github.event_name == 'workflow_dispatch' }}
         run: |
           missing=""
@@ -67,12 +66,6 @@ jobs:
           [ -z "$CF_ACCOUNT_ID" ] && missing="$missing CLOUDFLARE_ACCOUNT_ID"
           [ -z "$EBAY_ID" ]       && missing="$missing EBAY_CLIENT_ID"
           [ -z "$EBAY_SECRET" ]   && missing="$missing EBAY_CLIENT_SECRET"
-
-          # Optional: without it the Worker still serves eBay offers, just no
-          # product datasheets. Warn rather than block the deploy.
-          if [ -z "$ICECAT_USER" ]; then
-            echo "::warning::ICECAT_USERNAME not set — /catalog will return 503 and the app will show offer data only."
-          fi
 
           if [ -z "$missing" ]; then
             echo "configured=true" >> "$GITHUB_OUTPUT"
@@ -109,12 +102,10 @@ jobs:
           secrets: |
             EBAY_CLIENT_ID
             EBAY_CLIENT_SECRET
-            ICECAT_USERNAME
         env:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           EBAY_CLIENT_ID: ${{ secrets.EBAY_CLIENT_ID }}
           EBAY_CLIENT_SECRET: ${{ secrets.EBAY_CLIENT_SECRET }}
-          ICECAT_USERNAME: ${{ secrets.ICECAT_USERNAME }}
 
       # Deploy without touching the stored credentials, for code-only changes.
       - name: Deploy Worker (code only)
@@ -146,13 +137,6 @@ jobs:
                 if echo "$body" | grep -q '"configured":true'; then
                   echo ""
                   echo "The Worker is live and can see its eBay credentials."
-                  if echo "$body" | grep -q '"catalogConfigured":true'; then
-                    echo ""
-                    echo "Icecat product catalogue is connected."
-                  else
-                    echo ""
-                    echo "Icecat is **not** connected — add the \`ICECAT_USERNAME\` secret and re-run with credential upload ticked."
-                  fi
                 else
                   echo ""
                   echo "The Worker is live but reports no credentials — re-run with **Also upload the eBay credentials** ticked."

@@ -9,7 +9,6 @@ import { AiSummaryCard } from "@/components/AiSummaryCard";
 import { ExpandablePrice } from "@/components/ExpandablePrice";
 import { DataUnavailable } from "@/components/DataUnavailable";
 import { ListingImage } from "@/components/ListingImage";
-import { CatalogPanel } from "@/components/CatalogPanel";
 import { DetailSubBar } from "@/components/DetailSubBar";
 import { RecordVisit } from "@/components/RecordVisit";
 import { toSnapshot } from "@/lib/data/snapshot";
@@ -81,10 +80,6 @@ export function ListingResultView({ analysis }: { analysis: ListingAnalysis }) {
           />
         </div>
       </div>
-
-      {/* Manufacturer product data, matched only on an exact identifier and
-          labelled as a separate source from everything above. */}
-      <CatalogPanel listing={listing} />
 
       {/* Reviews — only what eBay actually publishes */}
       <div className="rounded-[22px] border border-border bg-surface p-5 sm:p-6" style={{ boxShadow: "var(--card-shadow)" }}>
@@ -181,9 +176,7 @@ export function ListingResultView({ analysis }: { analysis: ListingAnalysis }) {
       )}
 
       <p className="pt-2 text-center text-xs leading-relaxed text-muted">
-        Live listing data from eBay — price and availability change often, so check the listing before buying.
-        Any product specifications shown come from the manufacturer&apos;s catalogue and describe the product
-        rather than this seller&apos;s item.
+        Live listing data from eBay. Price and availability change often — check the listing before buying.
       </p>
     </div>
   );

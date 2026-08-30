@@ -9,11 +9,11 @@ import type { ProductRef } from "@/lib/data/catalog/types";
  * catalogue data: a product is matched by GTIN, or by brand *and* MPN, or
  * not at all. No title similarity, no brand-only guesses, no "close enough".
  *
- * The reason is not fussiness. Icecat returns a manufacturer's official
- * datasheet. Attaching one to the wrong listing produces something far worse
- * than missing data: confident, branded, entirely wrong specifications that a
- * user has every reason to believe. A missing datasheet costs a little
- * richness; a mismatched one costs the product's credibility.
+ * The reason is not fussiness. A product catalogue returns a manufacturer's
+ * official datasheet. Attaching one to the wrong listing produces something
+ * far worse than missing data: confident, branded, entirely wrong
+ * specifications that a user has every reason to believe. A missing datasheet
+ * costs a little richness; a mismatched one costs the product's credibility.
  *
  * eBay makes this harder than it sounds, because brand and MPN are
  * seller-typed free text. A large share of listings carry "Unbranded",

@@ -13,9 +13,8 @@ import { CatalogSourceError, type CatalogProduct, type ProductRef } from "@/lib/
  *
  *   unidentified   — the seller published no barcode and no brand+part number,
  *                    so there is nothing to look up. Very common on eBay.
- *   not_in_catalog — we had a solid identifier; the catalogue doesn't cover
- *                    this product. Typical of off-brand goods, since Open
- *                    Icecat carries brands that sponsor their own content.
+ *   not_in_catalog — we had a solid identifier; no catalogue covers this
+ *                    product. Typical of off-brand and grey-market goods.
  *   unavailable    — the catalogue itself is unreachable or unconfigured.
  *                    A BuyWise problem, not a fact about the product.
  *
