@@ -1,7 +1,8 @@
 import type { Listing } from "@/lib/data/listing";
 import { getActiveMarket } from "@/lib/data/market";
 import { productRefsFor, refKey } from "@/lib/data/catalog/ref";
-import { CatalogSourceError, type CatalogProduct, type ProductRef } from "@/lib/data/catalog/types";
+import { CatalogSourceError, type ProductRef } from "@/lib/data/catalog/types";
+import type { CanonicalProduct } from "@/lib/data/product";
 
 /**
  * Resolves a listing to an official product datasheet, when — and only when —
@@ -32,7 +33,7 @@ export type MissEnrichment = {
   product: null;
 };
 
-export type Enrichment = { status: "matched"; product: CatalogProduct } | MissEnrichment;
+export type Enrichment = { status: "matched"; product: CanonicalProduct } | MissEnrichment;
 
 const UNIDENTIFIED: MissEnrichment = { status: "unidentified", product: null };
 const NOT_IN_CATALOG: MissEnrichment = { status: "not_in_catalog", product: null };

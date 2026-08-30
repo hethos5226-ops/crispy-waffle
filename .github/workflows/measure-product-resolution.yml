@@ -11,15 +11,15 @@ on:
   push:
     branches: [claude/buywise-discovery-feed-d4mwaa]
     paths:
-      - "scripts/measure-icecat-index.mjs"
-      - ".github/workflows/measure-icecat-index.yml"
+      - "scripts/measure-product-resolution.mjs"
+      - ".github/workflows/measure-product-resolution.yml"
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: measure-icecat-index
+  group: measure-product-resolution
   cancel-in-progress: false
 
 jobs:
@@ -67,7 +67,7 @@ jobs:
           ICECAT_USERNAME: ${{ secrets.ICECAT_USERNAME }}
           ICECAT_PASSWORD: ${{ secrets.ICECAT_PASSWORD }}
           EBAY_MARKETPLACE: EBAY_AU
-        run: node --experimental-strip-types --disable-warning=ExperimentalWarning --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/measure-icecat-index.mjs
+        run: node --experimental-strip-types --disable-warning=ExperimentalWarning --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/measure-product-resolution.mjs
 
       - name: Upload index sample
         if: always()
