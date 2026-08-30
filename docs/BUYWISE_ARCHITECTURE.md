@@ -200,6 +200,10 @@ The six factors are fixed. What changes is who can answer them.
 | Warranty | 10% | **unavailable** | manufacturer data |
 | Product Age | 10% | catalogue release date, where confidently matched | Icecat / Wikidata |
 
+Audited factor by factor in [`SCORING_MODEL.md`](SCORING_MODEL.md), which
+records for each what it uses, what it lacks, what might supply it later, and
+what it must never assume.
+
 **A factor with no reliable data returns `score: null` and its weight is
 redistributed across the factors that could answer.** It is never filled with
 a guess, an average, or a plausible-looking default. The UI shows the factor,
@@ -212,6 +216,12 @@ claim as a 78 computed from 95%, and the interface should not pretend it is.
 
 With nothing scoreable the result is `null`, never `0`. Zero reads as a
 damning verdict on a product; null says we don't know.
+
+And redistribution alone is not enough: because the factors eBay can populate
+are the flattering ones, a product could score 90 and BUY NOW on 40% of the
+model while the same product fully known scored 66 and WAIT. **A BUY NOW now
+requires real data behind at least half the weight** — see
+[the confidence floor](SCORING_MODEL.md#the-confidence-floor).
 
 ---
 

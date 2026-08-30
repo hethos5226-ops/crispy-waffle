@@ -56,12 +56,43 @@ export interface CompositeScore {
   factors: ScoreFactor[];
   /** True when at least one factor was unavailable and its weight moved. */
   weightRedistributed: boolean;
+  /**
+   * True when the score alone would have said BUY NOW but too little of the
+   * model had real data behind it. The UI should explain this rather than
+   * silently showing WAIT.
+   */
+  verdictLimitedByConfidence: boolean;
   /** Share of total weight that had real data behind it, 0-1. */
   confidence: number;
 }
 
 const BUY_NOW_AT = 75;
 const WAIT_AT = 50;
+
+/**
+ * Share of the total weight that must come from real data before BuyWise is
+ * allowed to say BUY NOW.
+ *
+ * Redistribution alone lets missing data flatter a product. Scoring the
+ * average of what we know is honest arithmetic, but the *verdict* drawn from
+ * it is not, because the factors eBay can populate (price, alternatives) are
+ * systematically the flattering ones, while the factors it never supplies
+ * (warranty, product age) and usually omits (reviews, reliability) are the
+ * ones that would temper the result. Measured:
+ *
+ *   price 90, alternatives 90, everything else unknown  →  90  BUY NOW
+ *   the same product with reviews 40, reliability 50,
+ *   warranty 60, age 60 also known                      →  66  WAIT
+ *
+ * Not knowing made the product look better. That is the opposite of what a
+ * buying assistant should do, so a positive verdict now requires evidence
+ * behind at least half the model.
+ *
+ * The cap is deliberately one-directional. A false BUY costs someone money; a
+ * false DON'T BUY costs them a deal they might have wanted. So thin evidence
+ * may still produce a negative verdict, but never a positive one.
+ */
+export const MIN_CONFIDENCE_FOR_BUY = 0.5;
 
 export function verdictForScore(score: number): Verdict {
   if (score >= BUY_NOW_AT) return "BUY_NOW";
@@ -82,19 +113,37 @@ export function composeScore(factors: ScoreFactor[]): CompositeScore {
   const totalWeight = factors.reduce((sum, f) => sum + f.weight, 0);
 
   if (availableWeight === 0) {
-    return { score: null, verdict: null, factors, weightRedistributed: true, confidence: 0 };
+    return {
+      score: null,
+      verdict: null,
+      factors,
+      weightRedistributed: true,
+      verdictLimitedByConfidence: false,
+      confidence: 0,
+    };
   }
 
   const score = Math.round(
     available.reduce((sum, f) => sum + (f.score as number) * f.weight, 0) / availableWeight
   );
 
+  const confidence = totalWeight === 0 ? 0 : availableWeight / totalWeight;
+  const rawVerdict = verdictForScore(score);
+
+  // A BUY NOW that rests on too little evidence is downgraded to WAIT — the
+  // score still reads high and the breakdown still shows why, but BuyWise
+  // does not tell someone to buy on the strength of what it could not see.
+  const verdict: Verdict =
+    rawVerdict === "BUY_NOW" && confidence < MIN_CONFIDENCE_FOR_BUY ? "WAIT" : rawVerdict;
+
   return {
     score,
-    verdict: verdictForScore(score),
+    verdict,
+    /** True when the verdict was held back purely for lack of evidence. */
+    verdictLimitedByConfidence: verdict !== rawVerdict,
     factors,
     weightRedistributed: available.length < factors.length,
-    confidence: totalWeight === 0 ? 0 : availableWeight / totalWeight,
+    confidence,
   };
 }
 

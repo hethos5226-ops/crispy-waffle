@@ -1,6 +1,7 @@
 import type { Listing } from "@/lib/data/listing";
 import type { ScoreFactor, Verdict } from "@/lib/types";
 import { SCORE_WEIGHTS } from "@/lib/scoreWeights";
+import { composeScore } from "@/lib/score/factors";
 
 /**
  * Scores a real marketplace listing with the same six-factor model used for
@@ -28,6 +29,10 @@ export interface ListingAnalysis {
   verdict: Verdict | null;
   factors: ScoreFactor[];
   weightRedistributed: boolean;
+  /** Share of the scoring weight that had real data behind it, 0-1. */
+  confidence: number;
+  /** True when a BUY NOW was held back to WAIT purely for lack of evidence. */
+  verdictLimitedByConfidence: boolean;
   /** Null when there weren't enough comparable listings to say anything. */
   priceContext: PriceContext | null;
   reasoning: string;
@@ -180,25 +185,31 @@ export function analyzeListing(listing: Listing, peers: Listing[]): ListingAnaly
     },
   ];
 
-  const available = factors.filter((f) => f.score != null);
-  const totalWeight = available.reduce((sum, f) => sum + f.weight, 0);
-
-  // With nothing scoreable, the honest answer is "we can't say" — not a zero,
-  // which would read as a damning verdict on a product we know nothing about.
-  const score =
-    totalWeight > 0 ? Math.round(available.reduce((sum, f) => sum + f.score! * f.weight, 0) / totalWeight) : null;
-
-  const verdict: Verdict | null =
-    score == null ? null : score >= 75 ? "BUY_NOW" : score >= 50 ? "WAIT" : "DONT_BUY";
+  // Composed by lib/score/factors.ts rather than here. This path used to
+  // carry its own copy of the redistribution and verdict maths, which is
+  // exactly how two implementations of one rule drift apart — the confidence
+  // guard was added to one and missing from the other for as long as both
+  // existed.
+  const composite = composeScore(factors);
+  const { score, verdict } = composite;
 
   return {
     listing,
     score,
     verdict,
     factors,
-    weightRedistributed: available.length < factors.length,
+    weightRedistributed: composite.weightRedistributed,
+    confidence: composite.confidence,
+    verdictLimitedByConfidence: composite.verdictLimitedByConfidence,
     priceContext,
-    reasoning: buildReasoning(listing, verdict, priceContext, rating, alternative, available.length),
+    reasoning: buildReasoning(
+      listing,
+      verdict,
+      priceContext,
+      rating,
+      alternative,
+      factors.filter((f) => f.score != null).length
+    ),
     alternative,
   };
 }

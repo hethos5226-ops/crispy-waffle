@@ -37,6 +37,9 @@ That approach failed, measurably — see
    returns `null`, is shown as unavailable with the reason, and its weight is
    redistributed across the factors that could answer. No averages, no
    defaults, no plausible-looking placeholders.
+   **And not knowing must never flatter a product** — a BUY NOW requires real
+   data behind at least half the model. See
+   [the confidence floor](docs/SCORING_MODEL.md#the-confidence-floor).
 3. **Identity must be earned.** A seller-supplied barcode can never identify a
    product on its own, and even brand + part number agreement is not
    sufficient — see [the LG stand](docs/DATA_SOURCES.md#102-brand--mpn-agreement-is-still-not-sufficient).
@@ -75,6 +78,7 @@ need a deliberate call rather than a default:
 | --- | --- |
 | [`docs/DATA_SOURCES.md`](docs/DATA_SOURCES.md) | Every data source tested, with the actual measurements. **Don't redo this research.** |
 | [`docs/BUYWISE_ARCHITECTURE.md`](docs/BUYWISE_ARCHITECTURE.md) | Where this is going, the entity model, and the full return checklist. |
+| [`docs/SCORING_MODEL.md`](docs/SCORING_MODEL.md) | The six factors audited one by one — what each uses, what it lacks, and what it must never assume. |
 
 ---
 
