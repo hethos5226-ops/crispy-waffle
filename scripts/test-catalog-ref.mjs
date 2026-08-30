@@ -43,6 +43,15 @@ check("mpn full title rejected (4+ words)",
   usableMpn("Sony WH-1000XM5 Wireless Noise Cancelling Headphones", "Sony"), null);
 check("mpn overlong rejected", usableMpn("A".repeat(41), "Sony"), null);
 check("mpn 'WH1000XM5B' accepted", usableMpn("WH1000XM5B", "Sony"), "WH1000XM5B");
+
+// A barcode in the MPN box is still a barcode. Accepting it would let a GTIN
+// act as an identity signal through the one field allowed to identify alone.
+check("mpn EAN-13 rejected", usableMpn("4548736142435", "Sony"), null);
+check("mpn UPC-12 rejected", usableMpn("050036395885", "Sony"), null);
+check("mpn EAN-8 rejected", usableMpn("40170725", "Sony"), null);
+check("mpn GTIN-14 rejected", usableMpn("14548736142435", "Sony"), null);
+check("mpn hyphenated EAN rejected", usableMpn("4548-7361-42435", "Sony"), null);
+check("mpn 9-digit numeric accepted (not a GTIN length)", usableMpn("123456789", "Sony"), "123456789");
 check("mpn 'WH-1000XM5 B' accepted (2 words)", usableMpn("WH-1000XM5 B", "Sony"), "WH-1000XM5 B");
 
 // --- refs: only ever gtin or brand+mpn, gtin first ---
@@ -53,6 +62,8 @@ check("junk brand + good mpn → no refs",
   productRefsFor(L({ brand: "Unbranded", model: "WH1000XM5B" })), []);
 check("good brand + junk mpn → no refs",
   productRefsFor(L({ brand: "Sony", model: "Does not apply" })), []);
+check("gtin-shaped mpn yields no brand-mpn ref",
+  productRefsFor(L({ brand: "Sony", model: "4548736142435" })), []);
 check("brand + mpn → one ref",
   productRefsFor(L({ brand: "Sony", model: "WH1000XM5B" })),
   [{ kind: "brand-mpn", brand: "Sony", mpn: "WH1000XM5B" }]);

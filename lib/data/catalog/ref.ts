@@ -95,6 +95,14 @@ export function usableMpn(raw: string | null, brand: string | null): string | nu
   if (!/[a-z0-9]{2,}/i.test(mpn)) return null;
   // "Sony" as the MPN of a Sony product tells us nothing new.
   if (brand && mpn.toLowerCase() === brand.trim().toLowerCase()) return null;
+  // A bare 8/12/13/14-digit number is a barcode, whatever box it was typed
+  // into. Sellers routinely paste the EAN into the MPN field, and accepting
+  // it would smuggle a GTIN in as an identity signal through the one field
+  // that is allowed to establish identity on its own. Genuine numeric part
+  // codes of those exact lengths are collateral damage, and that is the right
+  // trade: the cost is a missed match, the alternative is a wrong one.
+  const digits = mpn.replace(/[\s-]/g, "");
+  if (/^\d+$/.test(digits) && [8, 12, 13, 14].includes(digits.length)) return null;
   return mpn;
 }
 
